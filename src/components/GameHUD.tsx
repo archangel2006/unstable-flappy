@@ -1,6 +1,8 @@
 /**
  * Game HUD Component
  * Displays score, phase, active effects, and debug info
+ * 
+ * REBALANCED: Added showcase mode, adaptive assist indicators
  */
 
 import React from 'react';
@@ -35,13 +37,29 @@ export const GameHUD: React.FC<GameHUDProps> = ({ state }) => {
         </div>
       </div>
       
-      {/* Demo mode indicator */}
-      {state.isDemoMode && (
-        <div className="absolute top-1/4 left-1/2 -translate-x-1/2 
-                        text-accent text-xl font-bold animate-pulse">
-          🎮 DEMO MODE ON
-        </div>
-      )}
+      {/* Mode indicators */}
+      <div className="absolute top-16 left-1/2 -translate-x-1/2 flex flex-col items-center gap-1">
+        {state.isDemoMode && (
+          <div className="text-accent text-lg font-bold animate-pulse bg-accent/20 px-3 py-1 rounded">
+            🎮 DEMO MODE
+          </div>
+        )}
+        {state.isShowcaseMode && (
+          <div className="text-game-neon-cyan text-lg font-bold animate-pulse bg-game-neon-cyan/20 px-3 py-1 rounded">
+            🎬 SHOWCASE MODE
+          </div>
+        )}
+        {state.adaptiveAssist.isActive && (
+          <div className="text-secondary text-sm font-bold bg-secondary/20 px-2 py-0.5 rounded">
+            🛟 ADAPTIVE ASSIST ACTIVE
+          </div>
+        )}
+        {state.isSlowMotion && (
+          <div className="text-accent text-sm">
+            ⏱ SLOW MOTION
+          </div>
+        )}
+      </div>
       
       {/* Control inversion warning */}
       {state.isControlFlipped && (
@@ -96,8 +114,9 @@ export const GameHUD: React.FC<GameHUDProps> = ({ state }) => {
       
       {/* Controls hint */}
       <div className="absolute bottom-4 left-1/2 -translate-x-1/2 
-                      text-xs text-muted-foreground/50">
-        [SPACE/CLICK] Flap • [D] Demo Mode
+                      text-xs text-muted-foreground/50 text-center">
+        <div>[SPACE/CLICK] Flap • [D] Demo • [S] Showcase</div>
+        <div>[1-9] Jump to Phase</div>
       </div>
     </div>
   );

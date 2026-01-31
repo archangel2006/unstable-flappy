@@ -1,6 +1,8 @@
 /**
  * Pipe Module
  * Handles pipe creation, movement, and mutation
+ * 
+ * REBALANCED: Larger gaps, gentler oscillation in early phases
  */
 
 import { Pipe } from './Types';
@@ -12,11 +14,15 @@ import { PIPES, CANVAS, EFFECTS } from './Config';
 export function createPipe(
   phase: number,
   isGhost: boolean = false,
-  hasDelayedCollision: boolean = false
+  hasDelayedCollision: boolean = false,
+  gapMultiplier: number = 1
 ): Pipe {
-  // Calculate gap size (shrinks with phase)
-  const gapReduction = Math.min(phase, 5) * PIPES.GAP_SHRINK_PER_PHASE;
-  const gapSize = Math.max(PIPES.MIN_GAP_SIZE, PIPES.GAP_SIZE - gapReduction);
+  // Calculate gap size (shrinks with phase, but more gently)
+  const gapReduction = Math.max(0, phase - 2) * PIPES.GAP_SHRINK_PER_PHASE;
+  let gapSize = Math.max(PIPES.MIN_GAP_SIZE, PIPES.GAP_SIZE - gapReduction);
+  
+  // Apply gap multiplier (from adaptive assist or showcase mode)
+  gapSize = gapSize * gapMultiplier;
   
   // Random gap Y position (center of gap)
   const minY = PIPES.MIN_GAP_Y + gapSize / 2;
@@ -38,6 +44,7 @@ export function createPipe(
 
 /**
  * Updates pipe position and oscillation
+ * REBALANCED: Very mild oscillation in phase 3
  */
 export function updatePipe(
   pipe: Pipe,
@@ -52,10 +59,18 @@ export function updatePipe(
   // Calculate oscillation if enabled
   let oscillationOffset = 0;
   if (enableOscillation) {
-    // Oscillation speed increases with phase
-    const oscillationSpeed = EFFECTS.OSCILLATION_SPEED * (1 + phase * 0.2);
+    // Phase 3: Very mild oscillation
+    // Later phases: Slightly more, but capped at 20px amplitude
+    let amplitudeMultiplier = 1;
+    if (phase === 3) {
+      amplitudeMultiplier = 0.3; // Only 30% of normal amplitude
+    } else if (phase <= 5) {
+      amplitudeMultiplier = 0.6;
+    }
+    
+    const oscillationSpeed = EFFECTS.OSCILLATION_SPEED * (1 + Math.min(phase - 3, 3) * 0.15);
     oscillationOffset = Math.sin(gameTime * oscillationSpeed + pipe.oscillationSeed) 
-      * EFFECTS.OSCILLATION_AMPLITUDE;
+      * EFFECTS.OSCILLATION_AMPLITUDE * amplitudeMultiplier;
   }
   
   return {
@@ -95,7 +110,7 @@ export function shouldBeGhostPipe(phase: number): boolean {
  */
 export function shouldHaveDelayedCollision(phase: number): boolean {
   if (phase < 8) return false;
-  return Math.random() < 0.3; // 30% chance in phase 8+
+  return Math.random() < 0.25; // 25% chance in phase 8+ (reduced from 30%)
 }
 
 /**
