@@ -57,6 +57,20 @@ export default {
           border: "hsl(var(--sidebar-border))",
           ring: "hsl(var(--sidebar-ring))",
         },
+        game: {
+          neon: {
+            green: "hsl(var(--game-neon-green))",
+            cyan: "hsl(var(--game-neon-cyan))",
+            pink: "hsl(var(--game-neon-pink))",
+            orange: "hsl(var(--game-neon-orange))",
+          },
+          warning: "hsl(var(--game-warning))",
+          ghost: "hsl(var(--game-ghost))",
+          bg: {
+            dark: "hsl(var(--game-bg-dark))",
+            mid: "hsl(var(--game-bg-mid))",
+          },
+        },
       },
       borderRadius: {
         lg: "var(--radius)",
