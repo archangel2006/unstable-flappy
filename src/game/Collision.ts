@@ -1,6 +1,8 @@
 /**
  * Collision Detection Module
  * Handles all collision checks between game entities
+ * 
+ * PATCHED: Added collision forgiveness for Demo mode
  */
 
 import { Bird, Pipe } from './Types';
@@ -11,14 +13,14 @@ import { isDelayedCollisionActive } from './Pipe';
  * Checks if bird collides with a specific pipe
  * Takes into account ghost pipes and delayed collision
  */
-export function checkPipeCollision(bird: Bird, pipe: Pipe): boolean {
+export function checkPipeCollision(bird: Bird, pipe: Pipe, forgivenessMs: number = 0): boolean {
   // Ghost pipes don't have collision
   if (pipe.isGhost) {
     return false;
   }
   
-  // Check if delayed collision is active
-  if (!isDelayedCollisionActive(pipe)) {
+  // Check if delayed collision is active (with forgiveness)
+  if (!isDelayedCollisionActive(pipe, forgivenessMs)) {
     return false;
   }
   
@@ -55,7 +57,7 @@ export function checkPipeCollision(bird: Bird, pipe: Pipe): boolean {
  * Checks if bird collides with ground
  */
 export function checkGroundCollision(bird: Bird): boolean {
-  const groundY = CANVAS.HEIGHT - 50; // Ground is 50px tall
+  const groundY = CANVAS.HEIGHT - 50;
   return bird.y + bird.height >= groundY;
 }
 
@@ -68,10 +70,9 @@ export function checkCeilingCollision(bird: Bird): boolean {
 
 /**
  * Checks collision against all pipes
- * Returns true if collision detected
  */
-export function checkAllPipeCollisions(bird: Bird, pipes: Pipe[]): boolean {
-  return pipes.some(pipe => checkPipeCollision(bird, pipe));
+export function checkAllPipeCollisions(bird: Bird, pipes: Pipe[], forgivenessMs: number = 0): boolean {
+  return pipes.some(pipe => checkPipeCollision(bird, pipe, forgivenessMs));
 }
 
 /**
@@ -79,19 +80,20 @@ export function checkAllPipeCollisions(bird: Bird, pipes: Pipe[]): boolean {
  */
 export function checkAllCollisions(
   bird: Bird, 
-  pipes: Pipe[]
+  pipes: Pipe[],
+  forgivenessMs: number = 0
 ): { hit: boolean; type: 'none' | 'pipe' | 'ground' | 'ceiling' } {
   // Check ground first (most common)
   if (checkGroundCollision(bird)) {
     return { hit: true, type: 'ground' };
   }
   
-  // Check pipes
-  if (checkAllPipeCollisions(bird, pipes)) {
+  // Check pipes (with forgiveness)
+  if (checkAllPipeCollisions(bird, pipes, forgivenessMs)) {
     return { hit: true, type: 'pipe' };
   }
   
-  // Ceiling collision doesn't cause game over, just stops upward movement
+  // Ceiling collision doesn't cause game over
   
   return { hit: false, type: 'none' };
 }

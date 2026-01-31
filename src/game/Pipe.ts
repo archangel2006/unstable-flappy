@@ -2,11 +2,11 @@
  * Pipe Module
  * Handles pipe creation, movement, and mutation
  * 
- * REBALANCED: Larger gaps, gentler oscillation in early phases
+ * PATCHED: Added scored flag, enhanced oscillation visibility
  */
 
-import { Pipe } from './Types';
-import { PIPES, CANVAS, EFFECTS } from './Config';
+import { Pipe, ModeConfig } from './Types';
+import { PIPES, CANVAS, EFFECTS, PHASE_EFFECTS } from './Config';
 
 /**
  * Creates a new pipe with randomized gap position
@@ -15,13 +15,17 @@ export function createPipe(
   phase: number,
   isGhost: boolean = false,
   hasDelayedCollision: boolean = false,
-  gapMultiplier: number = 1
+  gapMultiplier: number = 1,
+  modeConfig: ModeConfig
 ): Pipe {
   // Calculate gap size (shrinks with phase, but more gently)
   const gapReduction = Math.max(0, phase - 2) * PIPES.GAP_SHRINK_PER_PHASE;
   let gapSize = Math.max(PIPES.MIN_GAP_SIZE, PIPES.GAP_SIZE - gapReduction);
   
-  // Apply gap multiplier (from adaptive assist or showcase mode)
+  // Apply gap multiplier from mode config first
+  gapSize = gapSize * modeConfig.pipeGapMultiplier;
+  
+  // Then apply additional multiplier (from adaptive assist)
   gapSize = gapSize * gapMultiplier;
   
   // Random gap Y position (center of gap)
@@ -35,8 +39,9 @@ export function createPipe(
     gapSize,
     isGhost,
     oscillationOffset: 0,
-    oscillationSeed: Math.random() * Math.PI * 2, // Random starting phase
+    oscillationSeed: Math.random() * Math.PI * 2,
     passed: false,
+    scored: false, // ADDED: Track if scored
     spawnTime: Date.now(),
     hasDelayedCollision,
   };
@@ -44,14 +49,15 @@ export function createPipe(
 
 /**
  * Updates pipe position and oscillation
- * REBALANCED: Very mild oscillation in phase 3
+ * ENHANCED: More visible oscillation in Phase 3
  */
 export function updatePipe(
   pipe: Pipe,
   speed: number,
   phase: number,
   enableOscillation: boolean,
-  gameTime: number
+  gameTime: number,
+  modeConfig: ModeConfig
 ): Pipe {
   // Move pipe left
   const newX = pipe.x - speed;
@@ -59,18 +65,20 @@ export function updatePipe(
   // Calculate oscillation if enabled
   let oscillationOffset = 0;
   if (enableOscillation) {
-    // Phase 3: Very mild oscillation
-    // Later phases: Slightly more, but capped at 20px amplitude
-    let amplitudeMultiplier = 1;
-    if (phase === 3) {
-      amplitudeMultiplier = 0.3; // Only 30% of normal amplitude
-    } else if (phase <= 5) {
-      amplitudeMultiplier = 0.6;
+    // Enhanced amplitude for Phase 3 visibility
+    const baseAmplitude = PHASE_EFFECTS.OSCILLATION_AMPLITUDE;
+    const modeMultiplier = modeConfig.oscillationAmplitudeMultiplier;
+    
+    // Phase 3: Full visible oscillation
+    // Later phases: Even more intense
+    let phaseMultiplier = 1;
+    if (phase >= 9) {
+      phaseMultiplier = 1.3;
     }
     
-    const oscillationSpeed = EFFECTS.OSCILLATION_SPEED * (1 + Math.min(phase - 3, 3) * 0.15);
+    const oscillationSpeed = PHASE_EFFECTS.OSCILLATION_SPEED * (1 + Math.min(phase - 3, 3) * 0.1);
     oscillationOffset = Math.sin(gameTime * oscillationSpeed + pipe.oscillationSeed) 
-      * EFFECTS.OSCILLATION_AMPLITUDE * amplitudeMultiplier;
+      * baseAmplitude * modeMultiplier * phaseMultiplier;
   }
   
   return {
@@ -88,10 +96,22 @@ export function isPipeOffScreen(pipe: Pipe): boolean {
 }
 
 /**
- * Checks if bird has passed the pipe (for scoring)
+ * Checks if bird has passed the pipe center (for scoring)
+ * FIXED: Uses pipe center and scored flag
  */
-export function hasBirdPassedPipe(pipe: Pipe, birdX: number): boolean {
-  return !pipe.passed && pipe.x + PIPES.WIDTH < birdX;
+export function checkAndScorePipe(pipe: Pipe, birdX: number): { scored: boolean; pipe: Pipe } {
+  const pipeCenterX = pipe.x + PIPES.WIDTH / 2;
+  
+  // Bird has passed center and not yet scored
+  if (!pipe.scored && birdX > pipeCenterX) {
+    console.log(`[SCORE] Pipe scored! Bird X: ${birdX.toFixed(0)}, Pipe center: ${pipeCenterX.toFixed(0)}`);
+    return {
+      scored: true,
+      pipe: { ...pipe, scored: true, passed: true }
+    };
+  }
+  
+  return { scored: false, pipe };
 }
 
 /**
@@ -110,13 +130,13 @@ export function shouldBeGhostPipe(phase: number): boolean {
  */
 export function shouldHaveDelayedCollision(phase: number): boolean {
   if (phase < 8) return false;
-  return Math.random() < 0.25; // 25% chance in phase 8+ (reduced from 30%)
+  return Math.random() < 0.25;
 }
 
 /**
  * Checks if delayed collision is now active for a pipe
  */
-export function isDelayedCollisionActive(pipe: Pipe): boolean {
-  if (!pipe.hasDelayedCollision) return true; // Normal pipe, collision always active
-  return Date.now() - pipe.spawnTime > EFFECTS.DELAYED_COLLISION_MS;
+export function isDelayedCollisionActive(pipe: Pipe, forgivenessMs: number = 0): boolean {
+  if (!pipe.hasDelayedCollision) return true;
+  return Date.now() - pipe.spawnTime > EFFECTS.DELAYED_COLLISION_MS + forgivenessMs;
 }
