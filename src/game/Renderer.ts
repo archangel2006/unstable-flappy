@@ -1,10 +1,13 @@
 /**
  * Renderer Module
  * Handles all canvas drawing operations
+ * 
+ * PATCHED: Enhanced oscillating pipe glow/trail effects
  */
 
 import { Bird, Pipe, GameState } from './Types';
 import { CANVAS, PIPES, COLORS } from './Config';
+import { getPhaseConfig } from './PhaseManager';
 
 /**
  * Clears the canvas
@@ -18,11 +21,9 @@ export function clearCanvas(ctx: CanvasRenderingContext2D): void {
  * Draws the background with subtle grid pattern
  */
 export function drawBackground(ctx: CanvasRenderingContext2D): void {
-  // Draw subtle grid lines
   ctx.strokeStyle = 'rgba(0, 255, 136, 0.05)';
   ctx.lineWidth = 1;
   
-  // Vertical lines
   for (let x = 0; x < CANVAS.WIDTH; x += 40) {
     ctx.beginPath();
     ctx.moveTo(x, 0);
@@ -30,7 +31,6 @@ export function drawBackground(ctx: CanvasRenderingContext2D): void {
     ctx.stroke();
   }
   
-  // Horizontal lines
   for (let y = 0; y < CANVAS.HEIGHT; y += 40) {
     ctx.beginPath();
     ctx.moveTo(0, y);
@@ -45,11 +45,9 @@ export function drawBackground(ctx: CanvasRenderingContext2D): void {
 export function drawGround(ctx: CanvasRenderingContext2D): void {
   const groundY = CANVAS.HEIGHT - 50;
   
-  // Ground fill
   ctx.fillStyle = COLORS.GROUND;
   ctx.fillRect(0, groundY, CANVAS.WIDTH, 50);
   
-  // Ground line with glow
   ctx.shadowColor = COLORS.BIRD_GLOW;
   ctx.shadowBlur = 10;
   ctx.strokeStyle = COLORS.GROUND_LINE;
@@ -72,25 +70,21 @@ export function drawBird(
   const x = bird.x + shake.x;
   const y = bird.y + shake.y;
   
-  // Glow effect
   ctx.shadowColor = COLORS.BIRD_GLOW;
   ctx.shadowBlur = 15;
   
-  // Bird body (rounded rectangle)
   ctx.fillStyle = COLORS.BIRD;
   ctx.beginPath();
   const radius = 8;
   ctx.roundRect(x, y, bird.width, bird.height, radius);
   ctx.fill();
   
-  // Eye
   ctx.shadowBlur = 0;
   ctx.fillStyle = COLORS.BACKGROUND;
   ctx.beginPath();
   ctx.arc(x + bird.width - 10, y + 8, 4, 0, Math.PI * 2);
   ctx.fill();
   
-  // Beak
   ctx.fillStyle = '#ffaa00';
   ctx.beginPath();
   ctx.moveTo(x + bird.width, y + bird.height / 2);
@@ -98,7 +92,6 @@ export function drawBird(
   ctx.lineTo(x + bird.width, y + bird.height / 2 + 8);
   ctx.fill();
   
-  // Wing
   ctx.fillStyle = 'rgba(0, 200, 100, 0.8)';
   ctx.beginPath();
   ctx.ellipse(x + 10, y + bird.height / 2 + 2, 8, 5, 0, 0, Math.PI * 2);
@@ -106,40 +99,59 @@ export function drawBird(
 }
 
 /**
- * Draws a single pipe
+ * Draws a single pipe with enhanced effects for oscillating pipes
  */
 export function drawPipe(
   ctx: CanvasRenderingContext2D, 
-  pipe: Pipe
+  pipe: Pipe,
+  isOscillating: boolean,
+  ghostOpacity: number = 0.4
 ): void {
   const effectiveGapY = pipe.gapY + pipe.oscillationOffset;
   const gapTop = effectiveGapY - pipe.gapSize / 2;
   const gapBottom = effectiveGapY + pipe.gapSize / 2;
   const groundY = CANVAS.HEIGHT - 50;
   
+  // Draw trail effect for oscillating pipes
+  if (isOscillating && Math.abs(pipe.oscillationOffset) > 5) {
+    ctx.globalAlpha = 0.2;
+    const trailOffset = -pipe.oscillationOffset * 0.3;
+    const trailGapTop = (pipe.gapY + trailOffset) - pipe.gapSize / 2;
+    const trailGapBottom = (pipe.gapY + trailOffset) + pipe.gapSize / 2;
+    
+    ctx.fillStyle = COLORS.PIPE;
+    ctx.fillRect(pipe.x, 0, PIPES.WIDTH, trailGapTop);
+    ctx.fillRect(pipe.x, trailGapBottom, PIPES.WIDTH, groundY - trailGapBottom);
+    ctx.globalAlpha = 1;
+  }
+  
   // Set style based on ghost status
   if (pipe.isGhost) {
+    ctx.globalAlpha = ghostOpacity;
     ctx.fillStyle = COLORS.GHOST_PIPE;
     ctx.shadowColor = 'transparent';
   } else {
     ctx.fillStyle = COLORS.PIPE;
-    ctx.shadowColor = COLORS.PIPE_GLOW;
-    ctx.shadowBlur = 10;
+    // Enhanced glow for oscillating pipes
+    if (isOscillating && Math.abs(pipe.oscillationOffset) > 10) {
+      ctx.shadowColor = '#ff00ff';
+      ctx.shadowBlur = 20;
+    } else {
+      ctx.shadowColor = COLORS.PIPE_GLOW;
+      ctx.shadowBlur = 10;
+    }
   }
   
   // Top pipe
   ctx.fillRect(pipe.x, 0, PIPES.WIDTH, gapTop);
-  
-  // Top pipe cap
   ctx.fillRect(pipe.x - 3, gapTop - 20, PIPES.WIDTH + 6, 20);
   
   // Bottom pipe
   ctx.fillRect(pipe.x, gapBottom, PIPES.WIDTH, groundY - gapBottom);
-  
-  // Bottom pipe cap
   ctx.fillRect(pipe.x - 3, gapBottom, PIPES.WIDTH + 6, 20);
   
   ctx.shadowBlur = 0;
+  ctx.globalAlpha = 1;
   
   // Draw warning indicator for delayed collision pipes
   if (pipe.hasDelayedCollision) {
@@ -154,9 +166,11 @@ export function drawPipe(
  */
 export function drawPipes(
   ctx: CanvasRenderingContext2D, 
-  pipes: Pipe[]
+  pipes: Pipe[],
+  isOscillating: boolean,
+  ghostOpacity: number = 0.4
 ): void {
-  pipes.forEach(pipe => drawPipe(ctx, pipe));
+  pipes.forEach(pipe => drawPipe(ctx, pipe, isOscillating, ghostOpacity));
 }
 
 /**
@@ -175,12 +189,9 @@ export function drawWindIndicator(
   ctx.save();
   ctx.translate(x, y);
   
-  // Arrow direction based on wind
   if (windForce < 0) {
-    // Upward wind
     ctx.rotate(-Math.PI / 2);
   } else {
-    // Downward wind
     ctx.rotate(Math.PI / 2);
   }
   
@@ -196,35 +207,6 @@ export function drawWindIndicator(
 }
 
 /**
- * Applies visual glitch effects
- */
-export function applyVisualEffects(
-  ctx: CanvasRenderingContext2D,
-  canvas: HTMLCanvasElement,
-  rotation: number,
-  hueShift: number,
-  screenFlash: number
-): void {
-  // Save current transform
-  ctx.save();
-  
-  // Apply rotation around center
-  if (rotation !== 0) {
-    ctx.translate(CANVAS.WIDTH / 2, CANVAS.HEIGHT / 2);
-    ctx.rotate((rotation * Math.PI) / 180);
-    ctx.translate(-CANVAS.WIDTH / 2, -CANVAS.HEIGHT / 2);
-  }
-  
-  // Screen flash effect
-  if (screenFlash > 0) {
-    ctx.fillStyle = `rgba(0, 255, 136, ${screenFlash})`;
-    ctx.fillRect(0, 0, CANVAS.WIDTH, CANVAS.HEIGHT);
-  }
-  
-  ctx.restore();
-}
-
-/**
  * Main render function - draws entire game frame
  */
 export function render(
@@ -232,8 +214,14 @@ export function render(
   canvas: HTMLCanvasElement,
   state: GameState
 ): void {
-  // Apply visual effects transform
+  const config = getPhaseConfig(state.phase);
+  
   ctx.save();
+  
+  // Apply gravity wobble effect
+  if (state.gravityWobble > 0) {
+    ctx.translate(0, Math.sin(Date.now() * 0.03) * state.gravityWobble);
+  }
   
   if (state.canvasRotation !== 0) {
     ctx.translate(CANVAS.WIDTH / 2, CANVAS.HEIGHT / 2);
@@ -241,16 +229,14 @@ export function render(
     ctx.translate(-CANVAS.WIDTH / 2, -CANVAS.HEIGHT / 2);
   }
   
-  // Clear and draw background
   clearCanvas(ctx);
   drawBackground(ctx);
   
-  // Draw game elements
-  drawPipes(ctx, state.pipes);
+  // Draw pipes with oscillation effects
+  drawPipes(ctx, state.pipes, config.pipeOscillation, state.modeConfig.ghostPipeOpacity);
   drawGround(ctx);
   drawBird(ctx, state.bird, state.cameraShake);
   
-  // Draw wind indicator if wind is active
   if (state.currentWindForce !== 0) {
     drawWindIndicator(ctx, state.currentWindForce);
   }

@@ -67,17 +67,7 @@ export const EFFECTS = {
   SPEED_DRIFT_MAX: 0.15,
 } as const;
 
-export const DEMO = {
-  GRAVITY_MULTIPLIER: 0.6,
-  GAP_MULTIPLIER: 1.4,
-  SPEED_MULTIPLIER: 0.6,
-} as const;
-
-export const SHOWCASE = {
-  GRAVITY_MULTIPLIER: 0.5,
-  GAP_MULTIPLIER: 1.8,
-  SPEED_MULTIPLIER: 0.5,
-} as const;
+// REMOVED: Old DEMO and SHOWCASE configs - now in ModeConfig.ts
 
 export const ADAPTIVE_ASSIST = {
   GAP_BOOST: 1.1, // +10%
@@ -89,6 +79,19 @@ export const ADAPTIVE_ASSIST = {
 export const SLOW_MOTION = {
   PHASE_CHANGE_DURATION: 1500, // 1.5 seconds
   TIME_SCALE: 0.5,
+} as const;
+
+// ENHANCED: Stronger phase effects for visibility
+export const PHASE_EFFECTS = {
+  // Phase 2 Gravity Drift - more visible
+  GRAVITY_DRIFT_CYCLE_TIME: 4, // seconds
+  GRAVITY_LOW_MULTIPLIER: 0.65,
+  GRAVITY_HIGH_MULTIPLIER: 1.45,
+  GRAVITY_WOBBLE_INTENSITY: 3, // pixels
+  
+  // Phase 3 Oscillation - more visible
+  OSCILLATION_AMPLITUDE: 55, // pixels (increased from 20)
+  OSCILLATION_SPEED: 0.02, // rad/frame
 } as const;
 
 export const COLORS = {

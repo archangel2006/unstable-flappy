@@ -2,7 +2,9 @@
  * Phase Manager Module
  * Controls which game mechanics are active based on current phase
  * 
- * REBALANCED Phase Schedule:
+ * PATCHED: Enhanced visibility for Phase 2-3 effects
+ * 
+ * Phase Schedule:
  * Phase 1-2 — Safe classic flappy (larger gaps, no instability)
  * Phase 3 — Very mild oscillation only
  * Phase 4 — Wind force (gentle)
@@ -13,8 +15,8 @@
  * Phase 9 — All combined unstable mode
  */
 
-import { PhaseConfig, GameState } from './Types';
-import { PHYSICS, WIND, PIPES, EFFECTS, PHASE } from './Config';
+import { PhaseConfig, GameState, ModeConfig } from './Types';
+import { PHYSICS, WIND, PIPES, EFFECTS, PHASE, PHASE_EFFECTS } from './Config';
 
 /**
  * Gets the current phase based on time alive
@@ -25,15 +27,15 @@ export function getCurrentPhase(timeAlive: number): number {
 
 /**
  * Gets the phase configuration (which features are active)
- * REBALANCED: Early phases are safe
  */
 export function getPhaseConfig(phase: number): PhaseConfig {
   const isAllUnstable = phase >= 9;
   
   return {
-    // Phase 1-2 are completely safe - no instability features
-    gravityDrift: phase >= 3 || isAllUnstable,
-    pipeOscillation: phase >= 3 || isAllUnstable, // Very mild in phase 3
+    // Phase 1 is completely safe - no instability features
+    // Phase 2+ starts gravity drift
+    gravityDrift: phase >= 2 || isAllUnstable,
+    pipeOscillation: phase >= 3 || isAllUnstable,
     windForce: phase >= 4 || isAllUnstable,
     controlFlip: phase >= 5 || isAllUnstable,
     ghostPipes: phase >= 6 || isAllUnstable,
@@ -45,46 +47,63 @@ export function getPhaseConfig(phase: number): PhaseConfig {
 
 /**
  * Calculates gravity based on phase and time
- * REBALANCED: Gravity multiplier clamped between 0.7x and 1.2x
+ * ENHANCED: More visible gravity drift in Phase 2
  */
 export function calculateGravity(
   phase: number,
   timeAlive: number,
-  config: PhaseConfig
-): number {
+  config: PhaseConfig,
+  modeConfig: ModeConfig
+): { gravity: number; changed: boolean } {
+  const baseGravity = PHYSICS.GRAVITY * modeConfig.gravityMultiplier;
+  
   if (!config.gravityDrift) {
-    return PHYSICS.GRAVITY;
+    return { gravity: baseGravity, changed: false };
   }
   
-  // Phase 3: Mild variation
-  if (phase === 3) {
-    // Gentle oscillation between 0.9x and 1.1x
-    const cycle = Math.sin(timeAlive * 0.5);
-    return PHYSICS.GRAVITY * (1 + cycle * 0.1);
+  // Phase 2-3: Clear alternating gravity
+  if (phase === 2 || phase === 3) {
+    const cycleTime = PHASE_EFFECTS.GRAVITY_DRIFT_CYCLE_TIME;
+    const cyclePhase = Math.floor(timeAlive / cycleTime) % 2;
+    const prevCyclePhase = Math.floor((timeAlive - 0.016) / cycleTime) % 2;
+    const changed = cyclePhase !== prevCyclePhase;
+    
+    const multiplier = cyclePhase === 0 
+      ? PHASE_EFFECTS.GRAVITY_LOW_MULTIPLIER 
+      : PHASE_EFFECTS.GRAVITY_HIGH_MULTIPLIER;
+    
+    console.log(`[GRAVITY] Phase ${phase}: ${multiplier.toFixed(2)}x (${cyclePhase === 0 ? 'LOW' : 'HIGH'})`);
+    
+    return { gravity: baseGravity * multiplier, changed };
   } else if (phase === 4) {
     // Slightly floaty
-    return PHYSICS.FLOATY_GRAVITY;
+    return { gravity: PHYSICS.FLOATY_GRAVITY * modeConfig.gravityMultiplier, changed: false };
   } else {
     // Phase 5+: Cycle through gravity values every 5 seconds
-    // But clamped between 0.7x and 1.2x
     const cycle = Math.floor(timeAlive / 5) % 3;
+    const prevCycle = Math.floor((timeAlive - 0.016) / 5) % 3;
+    const changed = cycle !== prevCycle;
+    
+    let gravity: number;
     switch (cycle) {
-      case 0: return PHYSICS.GRAVITY;
-      case 1: return PHYSICS.HEAVY_GRAVITY; // 1.2x
-      case 2: return PHYSICS.FLOATY_GRAVITY; // 0.7x
-      default: return PHYSICS.GRAVITY;
+      case 0: gravity = PHYSICS.GRAVITY; break;
+      case 1: gravity = PHYSICS.HEAVY_GRAVITY; break;
+      case 2: gravity = PHYSICS.FLOATY_GRAVITY; break;
+      default: gravity = PHYSICS.GRAVITY;
     }
+    
+    return { gravity: gravity * modeConfig.gravityMultiplier, changed };
   }
 }
 
 /**
  * Calculates wind force based on phase and time
- * REBALANCED: Max wind is 20% of gravity
  */
 export function calculateWindForce(
   phase: number,
   timeAlive: number,
-  config: PhaseConfig
+  config: PhaseConfig,
+  modeConfig: ModeConfig
 ): number {
   if (!config.windForce) {
     return 0;
@@ -95,11 +114,12 @@ export function calculateWindForce(
   
   // Gentler wind in early phases
   const intensityMultiplier = phase === 4 ? 0.5 : 1;
+  const modeMultiplier = modeConfig.windForceMultiplier;
   
   switch (gustCycle) {
-    case 0: return WIND.UPWARD * intensityMultiplier;
+    case 0: return WIND.UPWARD * intensityMultiplier * modeMultiplier;
     case 1: return 0;
-    case 2: return WIND.DOWNWARD * intensityMultiplier;
+    case 2: return WIND.DOWNWARD * intensityMultiplier * modeMultiplier;
     case 3: return 0;
     default: return 0;
   }
@@ -107,30 +127,32 @@ export function calculateWindForce(
 
 /**
  * Calculates pipe speed with drift effect
- * REBALANCED: Max ±15% variation
  */
 export function calculatePipeSpeed(
   phase: number,
   timeAlive: number,
-  config: PhaseConfig
+  config: PhaseConfig,
+  modeConfig: ModeConfig
 ): number {
+  const baseSpeed = PIPES.SPEED * modeConfig.pipeSpeedMultiplier;
+  
   if (!config.speedDrift) {
-    return PIPES.SPEED;
+    return baseSpeed;
   }
   
   // Speed oscillates with max ±15% variation
   const cycle = timeAlive % 10; // 10-second cycle
-  const maxDrift = PIPES.SPEED * EFFECTS.SPEED_DRIFT_MAX;
+  const maxDrift = baseSpeed * EFFECTS.SPEED_DRIFT_MAX;
   
   if (cycle < 4) {
     // Gradual increase up to +15%
-    return PIPES.SPEED + (cycle / 4) * maxDrift;
+    return baseSpeed + (cycle / 4) * maxDrift;
   } else if (cycle < 5) {
     // Sudden drop to -15%
-    return PIPES.SPEED - maxDrift;
+    return baseSpeed - maxDrift;
   } else {
     // Gradual recovery
-    return PIPES.SPEED - maxDrift + ((cycle - 5) / 5) * maxDrift * 2;
+    return baseSpeed - maxDrift + ((cycle - 5) / 5) * maxDrift * 2;
   }
 }
 
@@ -159,6 +181,13 @@ export function shouldTriggerControlFlip(
   }
   
   return false;
+}
+
+/**
+ * Gets control flip duration based on mode
+ */
+export function getControlFlipDuration(modeConfig: ModeConfig): number {
+  return EFFECTS.CONTROL_FLIP_DURATION * modeConfig.controlFlipDurationMultiplier;
 }
 
 /**
@@ -191,7 +220,7 @@ export function getActiveEffects(
 ): string[] {
   const effects: string[] = [];
   
-  if (config.gravityDrift && state.phase >= 3) effects.push('GRAVITY DRIFT');
+  if (config.gravityDrift && state.phase >= 2) effects.push('GRAVITY DRIFT');
   if (config.pipeOscillation && state.phase >= 3) effects.push('PIPE OSCILLATION');
   if (config.windForce) effects.push('WIND FORCE');
   if (state.isControlFlipped) effects.push('⚠ CONTROL INVERTED');
@@ -208,15 +237,15 @@ export function getActiveEffects(
  */
 export function getPhaseTitle(phase: number): string {
   switch (phase) {
-    case 1: return 'PHASE 1: CLASSIC';
-    case 2: return 'PHASE 2: WARMING UP';
-    case 3: return 'PHASE 3: OSCILLATION';
-    case 4: return 'PHASE 4: WIND FORCE';
-    case 5: return 'PHASE 5: CONTROL CHAOS';
-    case 6: return 'PHASE 6: GHOST PIPES';
-    case 7: return 'PHASE 7: SPEED DRIFT';
-    case 8: return 'PHASE 8: VISUAL GLITCH';
-    case 9: return 'PHASE 9: TOTAL CHAOS';
-    default: return `PHASE ${phase}: BEYOND`;
+    case 1: return 'PHASE 1 — CLASSIC';
+    case 2: return 'PHASE 2 — GRAVITY DRIFT';
+    case 3: return 'PHASE 3 — OSCILLATION';
+    case 4: return 'PHASE 4 — WIND FORCE';
+    case 5: return 'PHASE 5 — CONTROL CHAOS';
+    case 6: return 'PHASE 6 — GHOST PIPES';
+    case 7: return 'PHASE 7 — SPEED DRIFT';
+    case 8: return 'PHASE 8 — VISUAL GLITCH';
+    case 9: return 'PHASE 9 — TOTAL CHAOS';
+    default: return `PHASE ${phase} — BEYOND`;
   }
 }

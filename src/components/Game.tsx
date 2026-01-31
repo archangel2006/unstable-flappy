@@ -2,18 +2,19 @@
  * Main Game Component
  * Handles the game loop, state management, and rendering
  * 
- * REBALANCED: Added showcase mode, phase jump, slow motion, adaptive assist
+ * PATCHED: Fixed HUD sync, mode system, adaptive assist default
  */
 
 import React, { useRef, useEffect, useCallback } from 'react';
-import { GameState, Pipe, AdaptiveAssist } from '../game/Types';
-import { CANVAS, PIPES, PHYSICS, EFFECTS, DEMO, SHOWCASE, ADAPTIVE_ASSIST, SLOW_MOTION } from '../game/Config';
+import { GameState, Pipe, AdaptiveAssist, GameMode } from '../game/Types';
+import { CANVAS, PIPES, PHYSICS, EFFECTS, ADAPTIVE_ASSIST, SLOW_MOTION, PHASE_EFFECTS } from '../game/Config';
+import { getModeConfig, logModeChange } from '../game/ModeConfig';
 import { createBird, updateBird, flapBird } from '../game/Bird';
 import { 
   createPipe, 
   updatePipe, 
   isPipeOffScreen, 
-  hasBirdPassedPipe,
+  checkAndScorePipe,
   shouldBeGhostPipe,
   shouldHaveDelayedCollision
 } from '../game/Pipe';
@@ -24,6 +25,7 @@ import {
   calculateWindForce,
   calculatePipeSpeed,
   shouldTriggerControlFlip,
+  getControlFlipDuration,
   calculateVisualEffects,
   getPhaseTitle,
 } from '../game/PhaseManager';
@@ -32,13 +34,15 @@ import { render } from '../game/Renderer';
 import { GameHUD } from './GameHUD';
 import { StartScreen } from './StartScreen';
 import { GameOverScreen } from './GameOverScreen';
+import { useUIState } from '../hooks/useUIState';
 
 /**
- * Creates initial adaptive assist state
+ * Creates initial adaptive assist state - defaults to OFF
  */
 function createInitialAdaptiveAssist(): AdaptiveAssist {
   return {
     isActive: false,
+    manuallyToggled: false,
     consecutiveEarlyDeaths: 0,
     lastDeathPhase: 0,
     gapMultiplier: 1,
@@ -50,7 +54,7 @@ function createInitialAdaptiveAssist(): AdaptiveAssist {
 /**
  * Creates initial game state
  */
-function createInitialState(): GameState {
+function createInitialState(mode: GameMode = 'CHAOS'): GameState {
   return {
     bird: createBird(),
     pipes: [],
@@ -67,8 +71,8 @@ function createInitialState(): GameState {
     controlFlipEndTime: 0,
     controlFlipWarning: false,
     controlFlipWarningEndTime: 0,
-    isDemoMode: false,
-    isShowcaseMode: false,
+    gameMode: mode,
+    modeConfig: getModeConfig(mode),
     adaptiveAssist: createInitialAdaptiveAssist(),
     isSlowMotion: false,
     slowMotionEndTime: 0,
@@ -80,6 +84,8 @@ function createInitialState(): GameState {
     hueShift: 0,
     screenFlash: 0,
     warningFlash: false,
+    gravityWobble: 0,
+    lastGravityChange: 0,
   };
 }
 
@@ -90,6 +96,9 @@ export const Game: React.FC = () => {
   const lastPipeSpawnRef = useRef<number>(0);
   const animationFrameRef = useRef<number>();
   const [, forceUpdate] = React.useReducer(x => x + 1, 0);
+  
+  // Synced UI state for HUD
+  const uiState = useUIState(stateRef);
 
   /**
    * Spawns a new pipe
@@ -101,13 +110,18 @@ export const Game: React.FC = () => {
     const isGhost = config.ghostPipes && shouldBeGhostPipe(state.phase);
     const hasDelayed = config.visualGlitch && shouldHaveDelayedCollision(state.phase);
     
-    // Calculate gap multiplier from all sources
-    let gapMultiplier = state.adaptiveAssist.gapMultiplier;
-    if (state.isDemoMode) gapMultiplier *= DEMO.GAP_MULTIPLIER;
-    if (state.isShowcaseMode) gapMultiplier *= SHOWCASE.GAP_MULTIPLIER;
+    // Adaptive assist gap multiplier
+    const gapMultiplier = state.adaptiveAssist.gapMultiplier;
     
-    const newPipe = createPipe(state.phase, isGhost, hasDelayed, gapMultiplier);
+    const newPipe = createPipe(
+      state.phase, 
+      isGhost, 
+      hasDelayed, 
+      gapMultiplier,
+      state.modeConfig
+    );
     state.pipes.push(newPipe);
+    console.log(`[PIPE] Spawned pipe. Ghost: ${isGhost}, Gap: ${newPipe.gapSize.toFixed(0)}px`);
   }, []);
 
   /**
@@ -116,14 +130,12 @@ export const Game: React.FC = () => {
   const handleFlap = useCallback(() => {
     const state = stateRef.current;
     
-    if (!state.hasStarted) {
-      state.hasStarted = true;
-      state.isPlaying = true;
-      forceUpdate();
+    if (state.isGameOver) {
       return;
     }
     
-    if (state.isGameOver) {
+    if (!state.hasStarted) {
+      // Don't start on click - use button instead
       return;
     }
     
@@ -145,6 +157,58 @@ export const Game: React.FC = () => {
   }, []);
 
   /**
+   * Starts the game with a specific mode
+   */
+  const handleStart = useCallback((mode: GameMode) => {
+    console.log(`[GAME] Starting in ${mode} mode`);
+    logModeChange(mode);
+    
+    stateRef.current = {
+      ...createInitialState(mode),
+      hasStarted: true,
+      isPlaying: true,
+    };
+    lastPipeSpawnRef.current = performance.now();
+    forceUpdate();
+  }, []);
+
+  /**
+   * Toggles game mode before start
+   */
+  const handleToggleMode = useCallback(() => {
+    const state = stateRef.current;
+    if (state.hasStarted) return;
+    
+    const newMode: GameMode = state.gameMode === 'CHAOS' ? 'DEMO' : 'CHAOS';
+    state.gameMode = newMode;
+    state.modeConfig = getModeConfig(newMode);
+    console.log(`[MODE] Toggled to ${newMode}`);
+    forceUpdate();
+  }, []);
+
+  /**
+   * Toggles adaptive assist
+   */
+  const handleToggleAssist = useCallback(() => {
+    const state = stateRef.current;
+    state.adaptiveAssist.isActive = !state.adaptiveAssist.isActive;
+    state.adaptiveAssist.manuallyToggled = true;
+    
+    if (state.adaptiveAssist.isActive) {
+      state.adaptiveAssist.gapMultiplier = ADAPTIVE_ASSIST.GAP_BOOST;
+      state.adaptiveAssist.gravityMultiplier = ADAPTIVE_ASSIST.GRAVITY_REDUCTION;
+      state.adaptiveAssist.speedMultiplier = ADAPTIVE_ASSIST.SPEED_REDUCTION;
+    } else {
+      state.adaptiveAssist.gapMultiplier = 1;
+      state.adaptiveAssist.gravityMultiplier = 1;
+      state.adaptiveAssist.speedMultiplier = 1;
+    }
+    
+    console.log(`[ASSIST] Adaptive Assist: ${state.adaptiveAssist.isActive ? 'ON' : 'OFF'}`);
+    forceUpdate();
+  }, []);
+
+  /**
    * Handles restart with adaptive assist tracking
    */
   const handleRestart = useCallback(() => {
@@ -155,56 +219,33 @@ export const Game: React.FC = () => {
     let newAssist = { ...prevAssist };
     const currentPhase = oldState.phase;
     
-    if (currentPhase === prevAssist.lastDeathPhase || currentPhase === prevAssist.lastDeathPhase + 1) {
-      // Died in same phase or next phase (didn't survive much longer)
-      newAssist.consecutiveEarlyDeaths++;
-      
-      if (newAssist.consecutiveEarlyDeaths >= ADAPTIVE_ASSIST.DEATHS_THRESHOLD) {
-        // Activate assist
-        newAssist.isActive = true;
-        newAssist.gapMultiplier *= ADAPTIVE_ASSIST.GAP_BOOST;
-        newAssist.gravityMultiplier *= ADAPTIVE_ASSIST.GRAVITY_REDUCTION;
-        newAssist.speedMultiplier *= ADAPTIVE_ASSIST.SPEED_REDUCTION;
+    // Only auto-activate if not manually toggled
+    if (!newAssist.manuallyToggled) {
+      if (currentPhase === prevAssist.lastDeathPhase || currentPhase === prevAssist.lastDeathPhase + 1) {
+        newAssist.consecutiveEarlyDeaths++;
+        
+        if (newAssist.consecutiveEarlyDeaths >= ADAPTIVE_ASSIST.DEATHS_THRESHOLD) {
+          newAssist.isActive = true;
+          newAssist.gapMultiplier *= ADAPTIVE_ASSIST.GAP_BOOST;
+          newAssist.gravityMultiplier *= ADAPTIVE_ASSIST.GRAVITY_REDUCTION;
+          newAssist.speedMultiplier *= ADAPTIVE_ASSIST.SPEED_REDUCTION;
+          console.log(`[ASSIST] Auto-activated after ${newAssist.consecutiveEarlyDeaths} early deaths`);
+        }
+      } else {
+        newAssist.consecutiveEarlyDeaths = 0;
       }
-    } else {
-      // Made good progress, reset death counter but keep assist if active
-      newAssist.consecutiveEarlyDeaths = 0;
     }
     
     newAssist.lastDeathPhase = currentPhase;
     
-    // Create new state but preserve assist and mode settings
+    // Create new state preserving mode and assist
     stateRef.current = {
-      ...createInitialState(),
-      isDemoMode: oldState.isDemoMode,
-      isShowcaseMode: oldState.isShowcaseMode,
+      ...createInitialState(oldState.gameMode),
       adaptiveAssist: newAssist,
       hasStarted: true,
       isPlaying: true,
     };
     lastPipeSpawnRef.current = performance.now();
-    forceUpdate();
-  }, []);
-
-  /**
-   * Toggles demo mode
-   */
-  const toggleDemoMode = useCallback(() => {
-    stateRef.current.isDemoMode = !stateRef.current.isDemoMode;
-    if (stateRef.current.isDemoMode) {
-      stateRef.current.isShowcaseMode = false; // Mutually exclusive
-    }
-    forceUpdate();
-  }, []);
-
-  /**
-   * Toggles showcase mode
-   */
-  const toggleShowcaseMode = useCallback(() => {
-    stateRef.current.isShowcaseMode = !stateRef.current.isShowcaseMode;
-    if (stateRef.current.isShowcaseMode) {
-      stateRef.current.isDemoMode = false; // Mutually exclusive
-    }
     forceUpdate();
   }, []);
 
@@ -215,8 +256,7 @@ export const Game: React.FC = () => {
     const state = stateRef.current;
     if (!state.hasStarted || state.isGameOver) return;
     
-    // Calculate time needed to be in that phase
-    const targetTime = (phase - 1) * 15 + 0.5; // 0.5 seconds into the phase
+    const targetTime = (phase - 1) * 15 + 0.5;
     state.timeAlive = targetTime;
     state.phase = phase;
     
@@ -228,6 +268,7 @@ export const Game: React.FC = () => {
     state.slowMotionEndTime = performance.now() + SLOW_MOTION.PHASE_CHANGE_DURATION;
     state.timeScale = SLOW_MOTION.TIME_SCALE;
     
+    console.log(`[PHASE] Jumped to Phase ${phase}`);
     forceUpdate();
   }, []);
 
@@ -267,6 +308,7 @@ export const Game: React.FC = () => {
       const newPhase = getCurrentPhase(state.timeAlive);
       if (newPhase !== state.phase) {
         // Phase change - trigger slow motion and display
+        console.log(`[PHASE] Changed to Phase ${newPhase}: ${getPhaseTitle(newPhase)}`);
         state.phase = newPhase;
         state.phaseChangeDisplay = getPhaseTitle(newPhase);
         state.phaseChangeDisplayEndTime = timestamp + 2000;
@@ -284,29 +326,28 @@ export const Game: React.FC = () => {
       // Get current phase config
       const config = getPhaseConfig(state.phase);
       
-      // Calculate physics values based on phase
-      let gravity = calculateGravity(state.phase, state.timeAlive, config);
-      let windForce = calculateWindForce(state.phase, state.timeAlive, config);
-      let pipeSpeed = calculatePipeSpeed(state.phase, state.timeAlive, config);
+      // Calculate physics values based on phase (now returns object with changed flag)
+      const gravityResult = calculateGravity(state.phase, state.timeAlive, config, state.modeConfig);
+      let gravity = gravityResult.gravity;
+      const windForce = calculateWindForce(state.phase, state.timeAlive, config, state.modeConfig);
+      let pipeSpeed = calculatePipeSpeed(state.phase, state.timeAlive, config, state.modeConfig);
+      
+      // Handle gravity change wobble effect
+      if (gravityResult.changed) {
+        state.gravityWobble = PHASE_EFFECTS.GRAVITY_WOBBLE_INTENSITY;
+        state.lastGravityChange = timestamp;
+      }
+      
+      // Decay gravity wobble
+      if (state.gravityWobble > 0) {
+        state.gravityWobble *= 0.9;
+        if (state.gravityWobble < 0.1) state.gravityWobble = 0;
+      }
       
       // Apply adaptive assist modifiers
       if (state.adaptiveAssist.isActive) {
         gravity *= state.adaptiveAssist.gravityMultiplier;
         pipeSpeed *= state.adaptiveAssist.speedMultiplier;
-      }
-      
-      // Apply demo mode modifiers
-      if (state.isDemoMode) {
-        gravity *= DEMO.GRAVITY_MULTIPLIER;
-        pipeSpeed *= DEMO.SPEED_MULTIPLIER;
-        windForce *= 0.5;
-      }
-      
-      // Apply showcase mode modifiers
-      if (state.isShowcaseMode) {
-        gravity *= SHOWCASE.GRAVITY_MULTIPLIER;
-        pipeSpeed *= SHOWCASE.SPEED_MULTIPLIER;
-        windForce *= 0.3;
       }
       
       // Store current values for HUD display
@@ -316,7 +357,6 @@ export const Game: React.FC = () => {
       
       // Handle control flip warning and activation
       if (shouldTriggerControlFlip(state, config)) {
-        // Start warning period
         state.controlFlipWarning = true;
         state.controlFlipWarningEndTime = timestamp + EFFECTS.CONTROL_FLIP_WARNING;
       }
@@ -325,7 +365,7 @@ export const Game: React.FC = () => {
       if (state.controlFlipWarning && timestamp > state.controlFlipWarningEndTime) {
         state.controlFlipWarning = false;
         state.isControlFlipped = true;
-        state.controlFlipEndTime = timestamp + EFFECTS.CONTROL_FLIP_DURATION;
+        state.controlFlipEndTime = timestamp + getControlFlipDuration(state.modeConfig);
       }
       
       // Check if control flip should end
@@ -340,41 +380,53 @@ export const Game: React.FC = () => {
       state.bird = updateBird(state.bird, gravity, windForce);
       
       // Spawn pipes
-      let spawnInterval = state.isDemoMode 
-        ? PIPES.SPAWN_INTERVAL * 1.5 
-        : state.isShowcaseMode
-        ? PIPES.SPAWN_INTERVAL * 1.8
-        : PIPES.SPAWN_INTERVAL;
+      const spawnInterval = PIPES.SPAWN_INTERVAL * state.modeConfig.pipeSpawnMultiplier;
       
       if (timestamp - lastPipeSpawnRef.current > spawnInterval) {
         spawnPipe();
         lastPipeSpawnRef.current = timestamp;
       }
       
-      // Update pipes
+      // Update pipes and check scoring
+      let scoreIncrement = 0;
       state.pipes = state.pipes
-        .map(pipe => updatePipe(
-          pipe, 
-          pipeSpeed, 
-          state.phase, 
-          config.pipeOscillation,
-          state.timeAlive
-        ))
+        .map(pipe => {
+          // Update pipe position and oscillation
+          const updatedPipe = updatePipe(
+            pipe, 
+            pipeSpeed, 
+            state.phase, 
+            config.pipeOscillation,
+            state.timeAlive,
+            state.modeConfig
+          );
+          
+          // Check for scoring
+          const scoreResult = checkAndScorePipe(updatedPipe, state.bird.x);
+          if (scoreResult.scored) {
+            scoreIncrement++;
+          }
+          
+          return scoreResult.pipe;
+        })
         .filter(pipe => !isPipeOffScreen(pipe));
       
-      // Check for scoring
-      state.pipes.forEach(pipe => {
-        if (hasBirdPassedPipe(pipe, state.bird.x)) {
-          pipe.passed = true;
-          state.score++;
-        }
-      });
+      // Apply score increment
+      if (scoreIncrement > 0) {
+        state.score += scoreIncrement;
+        console.log(`[SCORE] Score: ${state.score}`);
+      }
       
       // Check collisions
-      const collision = checkAllCollisions(state.bird, state.pipes);
+      const collision = checkAllCollisions(
+        state.bird, 
+        state.pipes,
+        state.modeConfig.collisionForgivenessMs
+      );
       if (collision.hit) {
         state.isGameOver = true;
         state.isPlaying = false;
+        console.log(`[GAME] Game Over! Final score: ${state.score}, Phase: ${state.phase}`);
         forceUpdate();
       }
       
@@ -412,10 +464,10 @@ export const Game: React.FC = () => {
       if (e.code === 'Space') {
         e.preventDefault();
         handleFlap();
-      } else if (e.code === 'KeyD') {
-        toggleDemoMode();
-      } else if (e.code === 'KeyS') {
-        toggleShowcaseMode();
+      } else if (e.code === 'KeyM') {
+        handleToggleMode();
+      } else if (e.code === 'KeyA') {
+        handleToggleAssist();
       } else if (e.key >= '1' && e.key <= '9') {
         jumpToPhase(parseInt(e.key));
       }
@@ -423,7 +475,7 @@ export const Game: React.FC = () => {
     
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [handleFlap, toggleDemoMode, toggleShowcaseMode, jumpToPhase]);
+  }, [handleFlap, handleToggleMode, handleToggleAssist, jumpToPhase]);
 
   /**
    * Start game loop
@@ -448,6 +500,16 @@ export const Game: React.FC = () => {
         {/* Warning border for control flip */}
         {state.warningFlash && (
           <div className="absolute inset-0 border-4 border-destructive rounded-lg animate-pulse pointer-events-none z-20" />
+        )}
+        
+        {/* Gravity wobble effect */}
+        {state.gravityWobble > 0 && (
+          <div 
+            className="absolute inset-0 border-2 border-primary/50 rounded-lg pointer-events-none z-10"
+            style={{
+              transform: `translateY(${Math.sin(Date.now() * 0.05) * state.gravityWobble}px)`,
+            }}
+          />
         )}
         
         {/* Canvas */}
@@ -480,14 +542,18 @@ export const Game: React.FC = () => {
           </div>
         )}
         
-        {/* HUD Overlay */}
+        {/* HUD Overlay - uses synced UI state */}
         {state.hasStarted && !state.isGameOver && (
-          <GameHUD state={state} />
+          <GameHUD uiState={uiState} />
         )}
         
         {/* Start Screen */}
         {!state.hasStarted && (
-          <StartScreen onStart={handleFlap} />
+          <StartScreen 
+            currentMode={state.gameMode}
+            onStart={handleStart}
+            onToggleMode={handleToggleMode}
+          />
         )}
         
         {/* Game Over Screen */}
