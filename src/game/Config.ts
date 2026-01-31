@@ -1,6 +1,8 @@
 /**
  * Game Configuration Constants
  * All physics, timing, and gameplay values are centralized here
+ * 
+ * REBALANCED for demo-friendliness and 2-3 minute survivability
  */
 
 export const CANVAS = {
@@ -16,28 +18,28 @@ export const BIRD = {
 } as const;
 
 export const PHYSICS = {
-  // Normal gravity and flap values
-  GRAVITY: 0.5,
-  FLAP_FORCE: -8,
+  // Normal gravity (reduced by 25% from 0.5)
+  GRAVITY: 0.375,
+  FLAP_FORCE: -7.5,
   
-  // Gravity variants for phases
-  HEAVY_GRAVITY: 0.75,
-  FLOATY_GRAVITY: 0.3,
+  // Gravity variants for phases (clamped between 0.7x and 1.2x of base)
+  HEAVY_GRAVITY: 0.45, // 1.2x base
+  FLOATY_GRAVITY: 0.26, // 0.7x base
   
-  // Terminal velocity
-  MAX_VELOCITY: 12,
-  MIN_VELOCITY: -12,
+  // Terminal velocity (clamped to avoid instant drops)
+  MAX_VELOCITY: 8,
+  MIN_VELOCITY: -10,
 } as const;
 
 export const PIPES = {
   WIDTH: 52,
-  GAP_SIZE: 150, // Initial gap size
-  MIN_GAP_SIZE: 100, // Minimum gap after shrinking
-  GAP_SHRINK_PER_PHASE: 8,
-  SPAWN_INTERVAL: 1600, // ms
-  SPEED: 2.5, // pixels per frame
-  MIN_GAP_Y: 100, // Minimum Y for gap center
-  MAX_GAP_Y_OFFSET: 100, // Max offset from center
+  GAP_SIZE: 200, // Increased by ~35% from 150
+  MIN_GAP_SIZE: 140, // Increased from 100
+  GAP_SHRINK_PER_PHASE: 5, // Reduced from 8
+  SPAWN_INTERVAL: 2000, // Increased from 1600ms
+  SPEED: 2.0, // Reduced by 20% from 2.5
+  MIN_GAP_Y: 100,
+  MAX_GAP_Y_OFFSET: 100,
 } as const;
 
 export const PHASE = {
@@ -46,24 +48,47 @@ export const PHASE = {
 } as const;
 
 export const WIND = {
-  UPWARD: -0.15,
-  DOWNWARD: 0.15,
-  GUST_INTERVAL: 2000, // ms
+  // Max wind is 20% of gravity
+  UPWARD: -0.075,
+  DOWNWARD: 0.075,
+  GUST_INTERVAL: 2500, // Slightly longer
 } as const;
 
 export const EFFECTS = {
-  CONTROL_FLIP_DURATION: 8000, // ms
+  CONTROL_FLIP_DURATION: 5000, // Reduced from 8000ms
+  CONTROL_FLIP_WARNING: 2000, // Show warning 2 seconds before
   GHOST_PIPE_BASE_PROBABILITY: 0.1,
   GHOST_PIPE_PHASE_MULTIPLIER: 0.1,
   DELAYED_COLLISION_MS: 300,
-  OSCILLATION_SPEED: 0.02,
-  OSCILLATION_AMPLITUDE: 30,
+  // Toned down oscillation
+  OSCILLATION_SPEED: 0.015, // Slower
+  OSCILLATION_AMPLITUDE: 20, // Reduced from 30
+  // Speed drift limited to ±15%
+  SPEED_DRIFT_MAX: 0.15,
 } as const;
 
 export const DEMO = {
   GRAVITY_MULTIPLIER: 0.6,
   GAP_MULTIPLIER: 1.4,
   SPEED_MULTIPLIER: 0.6,
+} as const;
+
+export const SHOWCASE = {
+  GRAVITY_MULTIPLIER: 0.5,
+  GAP_MULTIPLIER: 1.8,
+  SPEED_MULTIPLIER: 0.5,
+} as const;
+
+export const ADAPTIVE_ASSIST = {
+  GAP_BOOST: 1.1, // +10%
+  GRAVITY_REDUCTION: 0.9, // -10%
+  SPEED_REDUCTION: 0.9, // -10%
+  DEATHS_THRESHOLD: 2, // Activate after 2 deaths before next phase
+} as const;
+
+export const SLOW_MOTION = {
+  PHASE_CHANGE_DURATION: 1500, // 1.5 seconds
+  TIME_SCALE: 0.5,
 } as const;
 
 export const COLORS = {

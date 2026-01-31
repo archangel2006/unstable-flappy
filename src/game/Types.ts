@@ -23,6 +23,15 @@ export interface Pipe {
   hasDelayedCollision: boolean;
 }
 
+export interface AdaptiveAssist {
+  isActive: boolean;
+  consecutiveEarlyDeaths: number;
+  lastDeathPhase: number;
+  gapMultiplier: number;
+  gravityMultiplier: number;
+  speedMultiplier: number;
+}
+
 export interface GameState {
   bird: Bird;
   pipes: Pipe[];
@@ -41,15 +50,33 @@ export interface GameState {
   // Feature flags controlled by phase
   isControlFlipped: boolean;
   controlFlipEndTime: number;
+  controlFlipWarning: boolean; // Show warning before flip
+  controlFlipWarningEndTime: number;
   
   // Demo mode
   isDemoMode: boolean;
+  
+  // Showcase mode (all features, easy difficulty)
+  isShowcaseMode: boolean;
+  
+  // Adaptive difficulty assist
+  adaptiveAssist: AdaptiveAssist;
+  
+  // Slow motion for phase changes
+  isSlowMotion: boolean;
+  slowMotionEndTime: number;
+  timeScale: number;
+  
+  // Phase change display
+  phaseChangeDisplay: string;
+  phaseChangeDisplayEndTime: number;
   
   // Visual effects
   cameraShake: { x: number; y: number };
   canvasRotation: number;
   hueShift: number;
   screenFlash: number;
+  warningFlash: boolean; // Flashing border for control flip warning
 }
 
 export interface PhaseConfig {
@@ -68,4 +95,6 @@ export type GameAction =
   | { type: 'START' }
   | { type: 'RESTART' }
   | { type: 'TOGGLE_DEMO' }
+  | { type: 'TOGGLE_SHOWCASE' }
+  | { type: 'JUMP_TO_PHASE'; phase: number }
   | { type: 'TICK'; deltaTime: number };
