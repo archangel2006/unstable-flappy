@@ -1,12 +1,13 @@
 /**
  * Game Type Definitions
- * PATCHED: Added ModeConfig, UIState, and updated GameState for proper sync
+ * PATCHED: Removed AdaptiveAssist, added horizontal wind, control flip hold state
  */
 
 export interface Bird {
   x: number;
   y: number;
   velocityY: number;
+  velocityX: number; // ADDED: For horizontal wind
   width: number;
   height: number;
 }
@@ -19,20 +20,9 @@ export interface Pipe {
   oscillationOffset: number;
   oscillationSeed: number;
   passed: boolean;
-  scored: boolean; // ADDED: Track if scored
-  // For delayed collision (trust collapse feature)
+  scored: boolean;
   spawnTime: number;
   hasDelayedCollision: boolean;
-}
-
-export interface AdaptiveAssist {
-  isActive: boolean;
-  manuallyToggled: boolean; // ADDED: Track if user toggled
-  consecutiveEarlyDeaths: number;
-  lastDeathPhase: number;
-  gapMultiplier: number;
-  gravityMultiplier: number;
-  speedMultiplier: number;
 }
 
 /**
@@ -56,18 +46,16 @@ export interface ModeConfig {
 export interface UIState {
   score: number;
   currentPhase: number;
-  timeAlive: number;
   gravity: number;
   windForce: number;
   pipeSpeed: number;
   activeEffects: string[];
   mode: 'CHAOS' | 'DEMO';
-  adaptiveAssistActive: boolean;
   isSlowMotion: boolean;
   isControlFlipped: boolean;
   controlFlipWarning: boolean;
   phaseChangeDisplay: string;
-  gravityWobble: number; // For visual wobble effect
+  gravityWobble: number;
 }
 
 export type GameMode = 'CHAOS' | 'DEMO';
@@ -76,7 +64,7 @@ export interface GameState {
   bird: Bird;
   pipes: Pipe[];
   score: number;
-  timeAlive: number; // seconds
+  timeAlive: number; // seconds (internal use only)
   phase: number;
   isPlaying: boolean;
   isGameOver: boolean;
@@ -84,21 +72,19 @@ export interface GameState {
   
   // Current physics values (can mutate)
   currentGravity: number;
-  currentWindForce: number;
+  currentWindForce: number; // Now horizontal
   currentPipeSpeed: number;
   
-  // Feature flags controlled by phase
+  // Control flip state
   isControlFlipped: boolean;
   controlFlipEndTime: number;
-  controlFlipWarning: boolean; // Show warning before flip
+  controlFlipWarning: boolean;
   controlFlipWarningEndTime: number;
+  isHoldingInput: boolean; // ADDED: Track if player is holding space/click
   
   // Game mode (CHAOS or DEMO)
   gameMode: GameMode;
   modeConfig: ModeConfig;
-  
-  // Adaptive difficulty assist
-  adaptiveAssist: AdaptiveAssist;
   
   // Slow motion for phase changes
   isSlowMotion: boolean;
@@ -114,9 +100,9 @@ export interface GameState {
   canvasRotation: number;
   hueShift: number;
   screenFlash: number;
-  warningFlash: boolean; // Flashing border for control flip warning
-  gravityWobble: number; // Screen wobble when gravity changes
-  lastGravityChange: number; // Timestamp of last gravity change
+  warningFlash: boolean;
+  gravityWobble: number;
+  lastGravityChange: number;
 }
 
 export interface PhaseConfig {
@@ -135,7 +121,6 @@ export type GameAction =
   | { type: 'START' }
   | { type: 'RESTART' }
   | { type: 'TOGGLE_MODE' }
-  | { type: 'TOGGLE_ASSIST' }
   | { type: 'SET_MODE'; mode: GameMode }
   | { type: 'JUMP_TO_PHASE'; phase: number }
   | { type: 'TICK'; deltaTime: number };

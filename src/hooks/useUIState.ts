@@ -1,6 +1,8 @@
 /**
  * UI State Hook
  * Syncs game state to React state every 100ms for HUD updates
+ * 
+ * PATCHED: Removed timeAlive and assist from UI state
  */
 
 import { useState, useEffect, useRef } from 'react';
@@ -16,13 +18,11 @@ function createInitialUIState(): UIState {
   return {
     score: 0,
     currentPhase: 1,
-    timeAlive: 0,
     gravity: 0.375,
     windForce: 0,
     pipeSpeed: 2.0,
     activeEffects: [],
     mode: 'CHAOS',
-    adaptiveAssistActive: false,
     isSlowMotion: false,
     isControlFlipped: false,
     controlFlipWarning: false,
@@ -47,13 +47,11 @@ export function useUIState(stateRef: React.MutableRefObject<GameState>) {
       const newUIState: UIState = {
         score: state.score,
         currentPhase: state.phase,
-        timeAlive: state.timeAlive,
         gravity: state.currentGravity,
         windForce: state.currentWindForce,
         pipeSpeed: state.currentPipeSpeed,
         activeEffects,
         mode: state.gameMode,
-        adaptiveAssistActive: state.adaptiveAssist.isActive,
         isSlowMotion: state.isSlowMotion,
         isControlFlipped: state.isControlFlipped,
         controlFlipWarning: state.controlFlipWarning,
@@ -66,7 +64,7 @@ export function useUIState(stateRef: React.MutableRefObject<GameState>) {
       // Log every 1 second for verification
       const now = performance.now();
       if (now - lastLogRef.current >= 1000 && state.isPlaying && !state.isGameOver) {
-        console.log(`[UI SYNC] Score: ${state.score}, Phase: ${state.phase}, Time: ${state.timeAlive.toFixed(1)}s, Gravity: ${state.currentGravity.toFixed(3)}`);
+        console.log(`[UI SYNC] Score: ${state.score}, Phase: ${state.phase}, Gravity: ${state.currentGravity.toFixed(3)}, Wind: ${state.currentWindForce.toFixed(3)}`);
         lastLogRef.current = now;
       }
     };

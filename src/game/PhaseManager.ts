@@ -2,17 +2,7 @@
  * Phase Manager Module
  * Controls which game mechanics are active based on current phase
  * 
- * PATCHED: Enhanced visibility for Phase 2-3 effects
- * 
- * Phase Schedule:
- * Phase 1-2 — Safe classic flappy (larger gaps, no instability)
- * Phase 3 — Very mild oscillation only
- * Phase 4 — Wind force (gentle)
- * Phase 5 — Control flip event (with warnings)
- * Phase 6 — Ghost pipes
- * Phase 7 — Speed drift (limited)
- * Phase 8 — Visual glitch effects
- * Phase 9 — All combined unstable mode
+ * PATCHED: Wind is now HORIZONTAL, cleaned up phase titles
  */
 
 import { PhaseConfig, GameState, ModeConfig } from './Types';
@@ -32,8 +22,6 @@ export function getPhaseConfig(phase: number): PhaseConfig {
   const isAllUnstable = phase >= 9;
   
   return {
-    // Phase 1 is completely safe - no instability features
-    // Phase 2+ starts gravity drift
     gravityDrift: phase >= 2 || isAllUnstable,
     pipeOscillation: phase >= 3 || isAllUnstable,
     windForce: phase >= 4 || isAllUnstable,
@@ -47,7 +35,6 @@ export function getPhaseConfig(phase: number): PhaseConfig {
 
 /**
  * Calculates gravity based on phase and time
- * ENHANCED: More visible gravity drift in Phase 2
  */
 export function calculateGravity(
   phase: number,
@@ -72,14 +59,10 @@ export function calculateGravity(
       ? PHASE_EFFECTS.GRAVITY_LOW_MULTIPLIER 
       : PHASE_EFFECTS.GRAVITY_HIGH_MULTIPLIER;
     
-    console.log(`[GRAVITY] Phase ${phase}: ${multiplier.toFixed(2)}x (${cyclePhase === 0 ? 'LOW' : 'HIGH'})`);
-    
     return { gravity: baseGravity * multiplier, changed };
   } else if (phase === 4) {
-    // Slightly floaty
     return { gravity: PHYSICS.FLOATY_GRAVITY * modeConfig.gravityMultiplier, changed: false };
   } else {
-    // Phase 5+: Cycle through gravity values every 5 seconds
     const cycle = Math.floor(timeAlive / 5) % 3;
     const prevCycle = Math.floor((timeAlive - 0.016) / 5) % 3;
     const changed = cycle !== prevCycle;
@@ -97,7 +80,8 @@ export function calculateGravity(
 }
 
 /**
- * Calculates wind force based on phase and time
+ * Calculates HORIZONTAL wind force based on phase and time
+ * Wind now pushes bird LEFT or RIGHT
  */
 export function calculateWindForce(
   phase: number,
@@ -109,17 +93,18 @@ export function calculateWindForce(
     return 0;
   }
   
-  // Alternate between upward and downward wind every gust interval
+  // Alternate between left and right wind
   const gustCycle = Math.floor((timeAlive * 1000) / WIND.GUST_INTERVAL) % 4;
   
-  // Gentler wind in early phases
-  const intensityMultiplier = phase === 4 ? 0.5 : 1;
+  // Phase 4: Gentle wind, later phases: stronger
+  const intensityMultiplier = phase === 4 ? 0.5 : Math.min(1 + (phase - 4) * 0.15, 2);
   const modeMultiplier = modeConfig.windForceMultiplier;
   
+  // Horizontal wind: negative = left, positive = right
   switch (gustCycle) {
-    case 0: return WIND.UPWARD * intensityMultiplier * modeMultiplier;
+    case 0: return WIND.HORIZONTAL_LEFT * intensityMultiplier * modeMultiplier;
     case 1: return 0;
-    case 2: return WIND.DOWNWARD * intensityMultiplier * modeMultiplier;
+    case 2: return WIND.HORIZONTAL_RIGHT * intensityMultiplier * modeMultiplier;
     case 3: return 0;
     default: return 0;
   }
@@ -140,18 +125,14 @@ export function calculatePipeSpeed(
     return baseSpeed;
   }
   
-  // Speed oscillates with max ±15% variation
-  const cycle = timeAlive % 10; // 10-second cycle
+  const cycle = timeAlive % 10;
   const maxDrift = baseSpeed * EFFECTS.SPEED_DRIFT_MAX;
   
   if (cycle < 4) {
-    // Gradual increase up to +15%
     return baseSpeed + (cycle / 4) * maxDrift;
   } else if (cycle < 5) {
-    // Sudden drop to -15%
     return baseSpeed - maxDrift;
   } else {
-    // Gradual recovery
     return baseSpeed - maxDrift + ((cycle - 5) / 5) * maxDrift * 2;
   }
 }
@@ -167,15 +148,14 @@ export function shouldTriggerControlFlip(
   if (state.isControlFlipped) return false;
   if (state.controlFlipWarning) return false;
   
-  // Trigger at the start of phase 5, and then randomly every 25 seconds
   const phaseTime = state.timeAlive % PHASE.DURATION;
   
-  // Trigger at phase start (within first second)
+  // Trigger at phase start
   if (state.phase === 5 && phaseTime < 1) {
     return true;
   }
   
-  // Random trigger every ~25 seconds in later phases (less frequent)
+  // Random trigger in later phases
   if (state.phase >= 5 && Math.random() < 0.0005) {
     return true;
   }
@@ -202,10 +182,7 @@ export function calculateVisualEffects(
     return { rotation: 0, hueShift: 0 };
   }
   
-  // Slight canvas rotation (±2 degrees)
   const rotation = Math.sin(timeAlive * 2) * 2;
-  
-  // Hue shift cycling
   const hueShift = (timeAlive * 10) % 360;
   
   return { rotation, hueShift };
@@ -223,29 +200,33 @@ export function getActiveEffects(
   if (config.gravityDrift && state.phase >= 2) effects.push('GRAVITY DRIFT');
   if (config.pipeOscillation && state.phase >= 3) effects.push('PIPE OSCILLATION');
   if (config.windForce) effects.push('WIND FORCE');
-  if (state.isControlFlipped) effects.push('⚠ CONTROL INVERTED');
+  if (state.isControlFlipped) effects.push('⚠ CONTROLS FLIPPED');
   if (config.ghostPipes) effects.push('GHOST PIPES');
   if (config.speedDrift) effects.push('SPEED DRIFT');
   if (config.visualGlitch) effects.push('VISUAL GLITCH');
-  if (config.allUnstable) effects.push('⚡ ALL UNSTABLE');
+  if (config.allUnstable) effects.push('⚡ TOTAL CHAOS');
   
   return effects;
 }
 
 /**
- * Gets the phase title for display during phase changes
+ * Gets the phase title for display (clean format without em dash)
  */
-export function getPhaseTitle(phase: number): string {
-  switch (phase) {
-    case 1: return 'PHASE 1 — CLASSIC';
-    case 2: return 'PHASE 2 — GRAVITY DRIFT';
-    case 3: return 'PHASE 3 — OSCILLATION';
-    case 4: return 'PHASE 4 — WIND FORCE';
-    case 5: return 'PHASE 5 — CONTROL CHAOS';
-    case 6: return 'PHASE 6 — GHOST PIPES';
-    case 7: return 'PHASE 7 — SPEED DRIFT';
-    case 8: return 'PHASE 8 — VISUAL GLITCH';
-    case 9: return 'PHASE 9 — TOTAL CHAOS';
-    default: return `PHASE ${phase} — BEYOND`;
-  }
+export function getPhaseTitle(phase: number): { phase: string; effect: string } {
+  const titles: { [key: number]: string } = {
+    1: 'CLASSIC',
+    2: 'GRAVITY DRIFT',
+    3: 'OSCILLATION',
+    4: 'WIND FORCE',
+    5: 'CONTROL CHAOS',
+    6: 'GHOST PIPES',
+    7: 'SPEED DRIFT',
+    8: 'VISUAL GLITCH',
+    9: 'TOTAL CHAOS',
+  };
+  
+  return {
+    phase: `PHASE ${phase}`,
+    effect: titles[phase] || 'BEYOND',
+  };
 }

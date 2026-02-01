@@ -1,6 +1,6 @@
 /**
  * Start Screen Component
- * PATCHED: Added mode selection buttons
+ * PATCHED: Cleaner controls text formatting, removed Assist reference
  */
 
 import React from 'react';
@@ -96,14 +96,14 @@ export const StartScreen: React.FC<StartScreenProps> = ({
           <span className="text-accent text-right">PHASE 5</span>
           <span className="text-accent text-left">Control Flip</span>
           <span className="text-destructive text-right">PHASE 9</span>
-          <span className="text-destructive text-left">ALL UNSTABLE</span>
+          <span className="text-destructive text-left">Total Chaos</span>
         </div>
       </div>
       
-      {/* Controls hint */}
-      <p className="absolute bottom-8 text-xs text-muted-foreground/50 text-center">
-        [M] Switch Mode • [A] Toggle Assist • [1-9] Jump to Phase
-      </p>
+      {/* Controls hint - single clean line */}
+      <div className="absolute bottom-8 text-xs text-muted-foreground/50 text-center whitespace-nowrap">
+        [SPACE / CLICK] Flap&nbsp;&nbsp;&nbsp;[M] Mode&nbsp;&nbsp;&nbsp;[1–9] Jump Phase
+      </div>
     </div>
   );
 };
