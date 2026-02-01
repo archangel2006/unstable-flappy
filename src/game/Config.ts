@@ -53,8 +53,8 @@ export const EFFECTS = {
   GHOST_PIPE_BASE_PROBABILITY: 0.1,
   GHOST_PIPE_PHASE_MULTIPLIER: 0.1,
   DELAYED_COLLISION_MS: 300,
-  OSCILLATION_SPEED: 0.015,
-  OSCILLATION_AMPLITUDE: 20,
+  OSCILLATION_SPEED: 1.5, // ~4 second cycle (2π / 1.5 ≈ 4.2s)
+  OSCILLATION_AMPLITUDE: 60, // 60px base amplitude
   SPEED_DRIFT_MAX: 0.15,
 } as const;
 
@@ -68,9 +68,9 @@ export const PHASE_EFFECTS = {
   GRAVITY_LOW_MULTIPLIER: 0.65,
   GRAVITY_HIGH_MULTIPLIER: 1.45,
   GRAVITY_WOBBLE_INTENSITY: 3,
-  // Oscillation: Minimum 40px amplitude for visibility
-  OSCILLATION_AMPLITUDE: 50,
-  OSCILLATION_SPEED: 0.025,
+  // Oscillation: Visible amplitude with slow 3-5 second cycle
+  OSCILLATION_AMPLITUDE: 60,
+  OSCILLATION_SPEED: 1.5, // 2π / 1.5 ≈ 4.2 second full cycle
 } as const;
 
 export const COLORS = {
