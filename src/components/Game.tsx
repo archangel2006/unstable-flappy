@@ -308,7 +308,7 @@ export const Game: React.FC = () => {
         // Trigger System Overload at phases 3, 6, 9 (every 3rd phase)
         if (newPhase >= 3 && newPhase % 3 === 0) {
           state.isSystemOverload = true;
-          state.systemOverloadEndTime = timestamp + 1000; // 1.0 second freeze
+          state.systemOverloadEndTime = timestamp + 700; // 0.7 second freeze
           state.desaturation = 1;
           console.log(`[SYSTEM] Overload triggered at Phase ${newPhase}`);
           
@@ -543,45 +543,21 @@ export const Game: React.FC = () => {
           }}
         />
         
-        {/* System Overload Overlay - Icy Blue Freeze Effect */}
+        {/* System Overload Overlay */}
         {state.isSystemOverload && (
           <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-30">
-            {/* Icy frost overlay */}
             <div 
-              className="absolute inset-0 rounded-lg"
+              className="text-center px-10 py-6 rounded-xl border-2 border-destructive/50 animate-pulse"
               style={{
-                background: 'radial-gradient(ellipse at center, rgba(100, 200, 255, 0.15) 0%, rgba(50, 150, 255, 0.08) 50%, rgba(20, 100, 200, 0.05) 100%)',
-                boxShadow: 'inset 0 0 100px rgba(100, 200, 255, 0.2)',
-              }}
-            />
-            {/* Ice crystal border effect */}
-            <div 
-              className="absolute inset-2 rounded-lg pointer-events-none"
-              style={{
-                border: '2px solid rgba(150, 220, 255, 0.4)',
-                boxShadow: '0 0 20px rgba(100, 200, 255, 0.3), inset 0 0 40px rgba(100, 200, 255, 0.1)',
-              }}
-            />
-            {/* Main content box */}
-            <div 
-              className="text-center px-10 py-6 rounded-xl border-2 animate-pulse"
-              style={{
-                background: 'rgba(10, 30, 50, 0.95)',
-                borderColor: 'rgba(100, 200, 255, 0.6)',
-                boxShadow: '0 0 60px rgba(100, 200, 255, 0.4), inset 0 0 30px rgba(100, 200, 255, 0.1)',
+                background: 'rgba(0, 0, 0, 0.9)',
+                boxShadow: '0 0 60px rgba(255, 0, 0, 0.4), inset 0 0 30px rgba(255, 0, 0, 0.1)',
               }}
             >
-              <div 
-                className="text-3xl font-bold mb-2 tracking-wider"
-                style={{ color: 'rgb(150, 220, 255)', textShadow: '0 0 20px rgba(100, 200, 255, 0.8)' }}
-              >
+              <div className="text-3xl font-bold text-destructive mb-2 tracking-wider">
                 SYSTEM OVERLOAD
               </div>
-              <div 
-                className="text-lg animate-pulse"
-                style={{ color: 'rgba(150, 200, 255, 0.8)' }}
-              >
-                ❄ Stabilizing... ❄
+              <div className="text-lg text-muted-foreground animate-pulse">
+                Stabilizing...
               </div>
             </div>
           </div>
