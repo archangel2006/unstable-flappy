@@ -32,9 +32,11 @@ class AudioManager {
   private stutterInterval: number | null = null;
   private wobbleInterval: number | null = null;
   
-  // Base frequencies for ambient drone (in Hz) - LOWER, warmer tones
-  private readonly BASE_FREQUENCIES = [32, 48, 64, 96]; // C1, G1, C2, G2 - sub-bass/bass range
-  private readonly MASTER_VOLUME = 0.04; // Very subtle - felt more than heard
+  // Base frequencies for ambient drone (in Hz) - audible but warm
+  private readonly BASE_FREQUENCIES = [65, 98, 130, 196]; // C2, G2, C3, G3 - low but audible range
+  private readonly MASTER_VOLUME = 0.12; // Audible but not loud
+  
+  private isMuted = false;
   
   /**
    * Initialize the audio context and nodes
@@ -116,8 +118,8 @@ class AudioManager {
       }
     });
     
-    // Fade in
-    const targetVolume = isDemoMode ? this.MASTER_VOLUME * 0.7 : this.MASTER_VOLUME;
+    // Fade in (unless muted)
+    const targetVolume = this.isMuted ? 0 : (isDemoMode ? this.MASTER_VOLUME * 0.7 : this.MASTER_VOLUME);
     this.masterGain!.gain.linearRampToValueAtTime(
       targetVolume,
       this.audioContext.currentTime + 1
@@ -127,7 +129,7 @@ class AudioManager {
     this.currentPhase = 1;
     this.updatePhase(1);
     
-    console.log('[AUDIO] Started');
+    console.log('[AUDIO] Started', this.isMuted ? '(muted)' : '');
   }
   
   /**
@@ -154,6 +156,31 @@ class AudioManager {
     
     this.isPlaying = false;
     console.log('[AUDIO] Stopped');
+  }
+  
+  /**
+   * Toggle mute state
+   */
+  toggleMute(): boolean {
+    this.isMuted = !this.isMuted;
+    
+    if (this.audioContext && this.masterGain) {
+      const targetVolume = this.isMuted ? 0 : this.MASTER_VOLUME;
+      this.masterGain.gain.linearRampToValueAtTime(
+        targetVolume,
+        this.audioContext.currentTime + 0.2
+      );
+    }
+    
+    console.log('[AUDIO] Muted:', this.isMuted);
+    return this.isMuted;
+  }
+  
+  /**
+   * Get current mute state
+   */
+  getMuted(): boolean {
+    return this.isMuted;
   }
   
   /**
