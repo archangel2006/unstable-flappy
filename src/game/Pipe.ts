@@ -1,8 +1,8 @@
 /**
  * Pipe Module
- * Handles pipe creation, movement, and mutation
+ * Handles pipe creation, movement, and oscillation
  * 
- * PATCHED: Increased oscillation visibility (min 40px amplitude)
+ * Oscillation: 60px amplitude, ~4 second cycle, per-pipe phase offset
  */
 
 import { Pipe, ModeConfig } from './Types';
@@ -43,7 +43,11 @@ export function createPipe(
 
 /**
  * Updates pipe position and oscillation
- * Oscillation amplitude is at least 40px for visibility
+ * 
+ * Oscillation uses a smooth sine wave:
+ * - Base amplitude: 60px (clearly visible)
+ * - Frequency: ~4 second full cycle (up-down-up)
+ * - Each pipe has a phase offset so pipes don't move in sync
  */
 export function updatePipe(
   pipe: Pipe,
@@ -57,21 +61,25 @@ export function updatePipe(
   
   let oscillationOffset = 0;
   if (enableOscillation) {
-    // Base amplitude: 50px (ensures visibility)
+    // Base amplitude: 60px (clearly visible movement)
     const baseAmplitude = PHASE_EFFECTS.OSCILLATION_AMPLITUDE;
     const modeMultiplier = modeConfig.oscillationAmplitudeMultiplier;
     
-    // Phase multiplier: gets more intense in later phases
+    // Phase multiplier: slightly more intense in later phases
     let phaseMultiplier = 1;
     if (phase >= 9) {
-      phaseMultiplier = 1.4;
-    } else if (phase >= 7) {
       phaseMultiplier = 1.2;
+    } else if (phase >= 7) {
+      phaseMultiplier = 1.1;
     }
     
-    // Smooth sine wave oscillation
-    const oscillationSpeed = PHASE_EFFECTS.OSCILLATION_SPEED * (1 + Math.min(phase - 3, 4) * 0.1);
-    oscillationOffset = Math.sin(gameTime * oscillationSpeed + pipe.oscillationSeed) 
+    // Oscillation frequency: 1.5 rad/s = ~4.2 second full cycle
+    // Using gameTime (in seconds) for smooth sine wave
+    const frequency = PHASE_EFFECTS.OSCILLATION_SPEED;
+    
+    // Calculate offset: sin(time * frequency + pipePhaseOffset) * amplitude
+    // oscillationSeed provides per-pipe phase variation (0 to 2π)
+    oscillationOffset = Math.sin(gameTime * frequency + pipe.oscillationSeed) 
       * baseAmplitude * modeMultiplier * phaseMultiplier;
   }
   
