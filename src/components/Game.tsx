@@ -66,6 +66,8 @@ function createInitialState(mode: GameMode = 'CHAOS'): GameState {
     timeScale: 1,
     phaseChangeDisplay: '',
     phaseChangeDisplayEndTime: 0,
+    isSystemOverload: false,
+    systemOverloadEndTime: 0,
     cameraShake: { x: 0, y: 0 },
     canvasRotation: 0,
     hueShift: 0,
@@ -73,6 +75,7 @@ function createInitialState(mode: GameMode = 'CHAOS'): GameState {
     warningFlash: false,
     gravityWobble: 0,
     lastGravityChange: 0,
+    desaturation: 0,
   };
 }
 
@@ -258,8 +261,30 @@ export const Game: React.FC = () => {
       }
     }
     
-    // Only update if playing
+    // Only update if playing and NOT in system overload freeze
     if (state.isPlaying && !state.isGameOver) {
+      // Check if system overload freeze is active
+      if (state.isSystemOverload) {
+        if (timestamp > state.systemOverloadEndTime) {
+          // End the overload freeze
+          state.isSystemOverload = false;
+          state.desaturation = 0;
+          console.log('[SYSTEM] Overload ended, resuming...');
+          
+          // Resume audio with a brief distortion spike fade-out
+          audioManager.resumeFromOverload();
+        } else {
+          // During freeze: apply flickering desaturation
+          const flickerPhase = Math.sin(timestamp * 0.02) * 0.5 + 0.5;
+          state.desaturation = 0.7 + flickerPhase * 0.3;
+        }
+        
+        // Render but don't update physics during freeze
+        render(ctx, canvas, state);
+        animationFrameRef.current = requestAnimationFrame(gameLoop);
+        return;
+      }
+      
       // Update time alive
       state.timeAlive += deltaTime;
       
@@ -279,6 +304,17 @@ export const Game: React.FC = () => {
         state.isSlowMotion = true;
         state.slowMotionEndTime = timestamp + SLOW_MOTION.PHASE_CHANGE_DURATION;
         state.timeScale = SLOW_MOTION.TIME_SCALE;
+        
+        // Trigger System Overload at phases 3, 6, 9 (every 3rd phase)
+        if (newPhase >= 3 && newPhase % 3 === 0) {
+          state.isSystemOverload = true;
+          state.systemOverloadEndTime = timestamp + 700; // 0.7 second freeze
+          state.desaturation = 1;
+          console.log(`[SYSTEM] Overload triggered at Phase ${newPhase}`);
+          
+          // Trigger audio overload effect (momentary silence then distortion)
+          audioManager.triggerOverload();
+        }
       }
       
       // Clear phase display after time
@@ -498,11 +534,34 @@ export const Game: React.FC = () => {
           onMouseLeave={handleInputUp}
           onTouchStart={handleInputDown}
           onTouchEnd={handleInputUp}
-          className="rounded-lg border border-border shadow-[0_0_30px_rgba(0,255,136,0.2)] cursor-pointer"
+          className="rounded-lg border border-border shadow-[0_0_30px_rgba(0,255,136,0.2)] cursor-pointer transition-all duration-200"
           style={{
-            filter: state.hueShift > 0 ? `hue-rotate(${state.hueShift}deg)` : undefined,
+            filter: [
+              state.hueShift > 0 ? `hue-rotate(${state.hueShift}deg)` : '',
+              state.desaturation > 0 ? `grayscale(${state.desaturation})` : '',
+            ].filter(Boolean).join(' ') || undefined,
           }}
         />
+        
+        {/* System Overload Overlay */}
+        {state.isSystemOverload && (
+          <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-30">
+            <div 
+              className="text-center px-10 py-6 rounded-xl border-2 border-destructive/50 animate-pulse"
+              style={{
+                background: 'rgba(0, 0, 0, 0.9)',
+                boxShadow: '0 0 60px rgba(255, 0, 0, 0.4), inset 0 0 30px rgba(255, 0, 0, 0.1)',
+              }}
+            >
+              <div className="text-3xl font-bold text-destructive mb-2 tracking-wider">
+                SYSTEM OVERLOAD
+              </div>
+              <div className="text-lg text-muted-foreground animate-pulse">
+                Stabilizing...
+              </div>
+            </div>
+          </div>
+        )}
         
         {/* Phase Change Display - Clean two-line format */}
         {state.phaseChangeDisplay && (

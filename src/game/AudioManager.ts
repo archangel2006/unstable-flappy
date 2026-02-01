@@ -157,6 +157,52 @@ class AudioManager {
   }
   
   /**
+   * Trigger system overload audio effect (momentary silence then distortion spike)
+   */
+  triggerOverload(): void {
+    if (!this.audioContext || !this.masterGain) return;
+    
+    const now = this.audioContext.currentTime;
+    const currentGain = this.masterGain.gain.value;
+    
+    // Quick fade to near-silence
+    this.masterGain.gain.linearRampToValueAtTime(currentGain * 0.05, now + 0.1);
+    
+    // Apply heavy distortion
+    this.setDistortion(30);
+    
+    // Detune all oscillators dramatically
+    this.oscillators.forEach((osc) => {
+      osc.detune.linearRampToValueAtTime(-100, now + 0.2);
+    });
+    
+    console.log('[AUDIO] Overload triggered');
+  }
+  
+  /**
+   * Resume from system overload with smooth recovery
+   */
+  resumeFromOverload(): void {
+    if (!this.audioContext || !this.masterGain) return;
+    
+    const now = this.audioContext.currentTime;
+    const targetVolume = this.MASTER_VOLUME;
+    
+    // Fade back in
+    this.masterGain.gain.linearRampToValueAtTime(targetVolume, now + 0.3);
+    
+    // Reset distortion based on current phase
+    this.applyPhaseEffects(this.currentPhase, this.getInstabilityLevel(this.currentPhase));
+    
+    // Reset detune
+    this.oscillators.forEach((osc) => {
+      osc.detune.linearRampToValueAtTime(0, now + 0.5);
+    });
+    
+    console.log('[AUDIO] Resuming from overload');
+  }
+  
+  /**
    * Reset audio state for new game
    */
   reset(isDemoMode: boolean = false): void {
