@@ -3,6 +3,7 @@
  * Handles the game loop, state management, and rendering
  * 
  * PATCHED: Fixed control flip, horizontal wind, removed assist system
+ * Added: Background audio that degrades with system instability
  */
 
 import React, { useRef, useEffect, useCallback } from 'react';
@@ -35,6 +36,7 @@ import { GameHUD } from './GameHUD';
 import { StartScreen } from './StartScreen';
 import { GameOverScreen } from './GameOverScreen';
 import { useUIState } from '../hooks/useUIState';
+import { audioManager } from '../game/AudioManager';
 
 /**
  * Creates initial game state
@@ -163,6 +165,10 @@ export const Game: React.FC = () => {
       isPlaying: true,
     };
     lastPipeSpawnRef.current = performance.now();
+    
+    // Start background audio
+    audioManager.start(mode === 'DEMO');
+    
     forceUpdate();
   }, []);
 
@@ -185,6 +191,7 @@ export const Game: React.FC = () => {
    */
   const handleRestart = useCallback(() => {
     const oldState = stateRef.current;
+    const isDemoMode = oldState.gameMode === 'DEMO';
     
     stateRef.current = {
       ...createInitialState(oldState.gameMode),
@@ -192,6 +199,11 @@ export const Game: React.FC = () => {
       isPlaying: true,
     };
     lastPipeSpawnRef.current = performance.now();
+    
+    // Reset and restart audio
+    audioManager.reset(isDemoMode);
+    audioManager.start(isDemoMode);
+    
     forceUpdate();
   }, []);
 
@@ -256,6 +268,9 @@ export const Game: React.FC = () => {
       if (newPhase !== state.phase) {
         console.log(`[PHASE] Changed to Phase ${newPhase}`);
         state.phase = newPhase;
+        
+        // Update audio based on phase
+        audioManager.updatePhase(newPhase);
         
         const title = getPhaseTitle(newPhase);
         state.phaseChangeDisplay = `${title.phase}\n${title.effect}`;
@@ -374,6 +389,9 @@ export const Game: React.FC = () => {
       if (collision.hit) {
         state.isGameOver = true;
         state.isPlaying = false;
+        
+        // Stop audio on game over
+        audioManager.stop();
         console.log(`[GAME] Game Over! Final score: ${state.score}, Phase: ${state.phase}`);
         forceUpdate();
       }
@@ -444,6 +462,8 @@ export const Game: React.FC = () => {
       if (animationFrameRef.current) {
         cancelAnimationFrame(animationFrameRef.current);
       }
+      // Cleanup audio on unmount
+      audioManager.dispose();
     };
   }, [gameLoop]);
 
