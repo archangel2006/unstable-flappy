@@ -32,9 +32,9 @@ class AudioManager {
   private stutterInterval: number | null = null;
   private wobbleInterval: number | null = null;
   
-  // Base frequencies for ambient drone (in Hz)
-  private readonly BASE_FREQUENCIES = [55, 82.5, 110, 165]; // A1, E2, A2, E3
-  private readonly MASTER_VOLUME = 0.15; // Keep it subtle
+  // Base frequencies for ambient drone (in Hz) - LOWER, warmer tones
+  private readonly BASE_FREQUENCIES = [32, 48, 64, 96]; // C1, G1, C2, G2 - sub-bass/bass range
+  private readonly MASTER_VOLUME = 0.04; // Very subtle - felt more than heard
   
   /**
    * Initialize the audio context and nodes
@@ -69,14 +69,14 @@ class AudioManager {
       this.distortion.curve = null; // No distortion initially
       this.distortion.connect(this.highPassFilter);
       
-      // Create oscillators for ambient drone
+      // Create oscillators for ambient drone - pure sine waves only, no harmonics
       this.BASE_FREQUENCIES.forEach((freq, index) => {
         const osc = this.audioContext!.createOscillator();
         const gain = this.audioContext!.createGain();
         
-        osc.type = index === 0 ? 'sine' : 'triangle';
+        osc.type = 'sine'; // Pure sine only - no buzzy harmonics
         osc.frequency.value = freq;
-        gain.gain.value = index === 0 ? 0.4 : 0.2; // Bass louder
+        gain.gain.value = index === 0 ? 0.5 : 0.25; // Sub-bass dominant
         
         osc.connect(gain);
         gain.connect(this.distortion!);
@@ -157,26 +157,27 @@ class AudioManager {
   }
   
   /**
-   * Trigger system overload audio effect (momentary silence then distortion spike)
+   * Trigger system overload audio effect - near silence with muffled low-pass
    */
   triggerOverload(): void {
     if (!this.audioContext || !this.masterGain) return;
     
     const now = this.audioContext.currentTime;
-    const currentGain = this.masterGain.gain.value;
     
-    // Quick fade to near-silence
-    this.masterGain.gain.linearRampToValueAtTime(currentGain * 0.05, now + 0.1);
+    // Fade to near-silence quickly
+    this.masterGain.gain.linearRampToValueAtTime(0.005, now + 0.1);
     
-    // Apply heavy distortion
-    this.setDistortion(30);
+    // Apply heavy low-pass filter (muffled, underwater effect)
+    if (this.lowPassFilter) {
+      this.lowPassFilter.frequency.linearRampToValueAtTime(80, now + 0.1);
+    }
     
-    // Detune all oscillators dramatically
+    // Slight pitch drop
     this.oscillators.forEach((osc) => {
-      osc.detune.linearRampToValueAtTime(-100, now + 0.2);
+      osc.detune.linearRampToValueAtTime(-50, now + 0.2);
     });
     
-    console.log('[AUDIO] Overload triggered');
+    console.log('[AUDIO] Overload triggered - muffled silence');
   }
   
   /**
@@ -268,55 +269,45 @@ class AudioManager {
   }
   
   /**
-   * Apply audio effects based on phase
+   * Apply audio effects based on phase - SUBTLE, non-fatiguing
    */
   private applyPhaseEffects(phase: number, instability: number): void {
     if (!this.audioContext) return;
     
     const now = this.audioContext.currentTime;
-    const transitionTime = 2; // Gradual transitions
+    const transitionTime = 3; // Slow, gradual transitions
     
-    // Phase 1-2: Clean, steady
+    // Phase 1-2: Clean, steady, warm
     if (phase <= 2) {
-      this.lowPassFilter!.frequency.linearRampToValueAtTime(2000, now + transitionTime);
+      this.lowPassFilter!.frequency.linearRampToValueAtTime(400, now + transitionTime); // Low pass for warmth
       this.highPassFilter!.frequency.linearRampToValueAtTime(20, now + transitionTime);
       this.distortion!.curve = null;
       this.clearWobble();
       this.clearStutter();
     }
-    // Phase 3-4: Subtle filtering
+    // Phase 3-4: Very subtle filtering, slow gentle modulation
     else if (phase <= 4) {
-      // Slightly muffled sound
-      this.lowPassFilter!.frequency.linearRampToValueAtTime(1200 - (phase - 3) * 200, now + transitionTime);
-      this.startWobble(0.1); // Very subtle pitch wobble
+      this.lowPassFilter!.frequency.linearRampToValueAtTime(300, now + transitionTime);
+      this.startWobble(0.03); // Very slow, gentle pitch drift
     }
-    // Phase 5-6: More filtering, subtle detune
+    // Phase 5-6: Slightly more filtering, gentle unease
     else if (phase <= 6) {
-      this.lowPassFilter!.frequency.linearRampToValueAtTime(800, now + transitionTime);
-      this.highPassFilter!.frequency.linearRampToValueAtTime(60, now + transitionTime);
-      this.startWobble(0.2);
-      
-      // Slight detune
-      this.oscillators.forEach((osc, i) => {
-        const detune = (Math.random() - 0.5) * 10 * instability;
-        osc.detune.linearRampToValueAtTime(detune, now + transitionTime);
-      });
+      this.lowPassFilter!.frequency.linearRampToValueAtTime(250, now + transitionTime);
+      this.highPassFilter!.frequency.linearRampToValueAtTime(30, now + transitionTime);
+      this.startWobble(0.06); // Still subtle
     }
-    // Phase 7-8: Noticeable instability
+    // Phase 7-8: Sparse glitches, brief stutters
     else if (phase <= 8) {
-      this.lowPassFilter!.frequency.linearRampToValueAtTime(600, now + transitionTime);
-      this.highPassFilter!.frequency.linearRampToValueAtTime(100, now + transitionTime);
-      this.setDistortion(5);
-      this.startWobble(0.4);
-      this.startStutter(0.3);
+      this.lowPassFilter!.frequency.linearRampToValueAtTime(200, now + transitionTime);
+      this.highPassFilter!.frequency.linearRampToValueAtTime(40, now + transitionTime);
+      this.clearWobble(); // No constant wobble
+      this.startSparseGlitch(0.15); // Sparse, brief glitches
     }
-    // Phase 9+: System collapse
+    // Phase 9+: More frequent sparse glitches
     else {
-      this.lowPassFilter!.frequency.linearRampToValueAtTime(400, now + transitionTime);
-      this.highPassFilter!.frequency.linearRampToValueAtTime(150, now + transitionTime);
-      this.setDistortion(15);
-      this.startWobble(0.6);
-      this.startStutter(0.5);
+      this.lowPassFilter!.frequency.linearRampToValueAtTime(150, now + transitionTime);
+      this.highPassFilter!.frequency.linearRampToValueAtTime(50, now + transitionTime);
+      this.startSparseGlitch(0.25); // Slightly more frequent but still sparse
     }
   }
   
@@ -344,22 +335,25 @@ class AudioManager {
   }
   
   /**
-   * Start pitch wobble effect
+   * Start SLOW, gentle pitch modulation (not wobble)
    */
   private startWobble(intensity: number): void {
     this.clearWobble();
     
+    // Much slower interval for gentle drift
     this.wobbleInterval = window.setInterval(() => {
       if (!this.audioContext) return;
       
       this.oscillators.forEach((osc, i) => {
-        const wobble = (Math.random() - 0.5) * 20 * intensity;
+        // Very slow, smooth sine-like drift instead of random
+        const time = Date.now() * 0.0005;
+        const drift = Math.sin(time + i * 0.5) * 5 * intensity;
         osc.detune.linearRampToValueAtTime(
-          wobble,
-          this.audioContext!.currentTime + 0.3
+          drift,
+          this.audioContext!.currentTime + 1.5 // Slow transition
         );
       });
-    }, 500);
+    }, 2000); // Every 2 seconds, not 500ms
   }
   
   /**
@@ -380,24 +374,33 @@ class AudioManager {
   }
   
   /**
-   * Start stutter effect (brief volume drops)
+   * Start SPARSE glitch effect - brief, infrequent audio hiccups
    */
-  private startStutter(intensity: number): void {
+  private startSparseGlitch(intensity: number): void {
     this.clearStutter();
     
     this.stutterInterval = window.setInterval(() => {
       if (!this.audioContext || !this.masterGain) return;
       
-      // Random chance of stutter based on intensity
-      if (Math.random() < intensity * 0.3) {
+      // Low probability of glitch
+      if (Math.random() < intensity) {
         const now = this.audioContext.currentTime;
         const currentGain = this.masterGain.gain.value;
         
-        // Brief volume drop
-        this.masterGain.gain.linearRampToValueAtTime(currentGain * 0.3, now + 0.02);
-        this.masterGain.gain.linearRampToValueAtTime(currentGain, now + 0.08);
+        // Very brief dropout (20-40ms)
+        this.masterGain.gain.setValueAtTime(currentGain * 0.1, now);
+        this.masterGain.gain.linearRampToValueAtTime(currentGain, now + 0.03);
+        
+        // Occasional brief pitch glitch
+        if (Math.random() < 0.3) {
+          const randomOsc = this.oscillators[Math.floor(Math.random() * this.oscillators.length)];
+          if (randomOsc) {
+            randomOsc.detune.setValueAtTime(-20, now);
+            randomOsc.detune.linearRampToValueAtTime(0, now + 0.05);
+          }
+        }
       }
-    }, 200);
+    }, 800); // Check less frequently
   }
   
   /**
