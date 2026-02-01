@@ -1,73 +1,115 @@
-# Welcome to your Lovable project
+# 🐦 Unstable Flappy  
 
-## Project info
+### *A System That Breaks Itself*
 
-**URL**: https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID
+ 
+***Unstable Flappy*** is a browser-based game inspired by *Flappy Bird*, reimagined as a living system that **destabilizes over time**.  
+The longer you survive, the less the game can be trusted.
 
-## How can I edit this code?
 
-There are several ways of editing your application.
+🔗 **Live Demo:** https://flappy-bird-new.lovable.app 
 
-**Use Lovable**
+---
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and start prompting.
+## 🎯 Core Idea
 
-Changes made via Lovable will be committed automatically to this repo.
+Most games get harder by increasing numbers.
 
-**Use your preferred IDE**
+**Unstable Flappy gets harder by breaking rules.**
 
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
+- Gravity shifts.
+- Controls invert.
+- Pipes begin to oscillate.
+- The system freezes.
+- The music degrades.
 
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
+Nothing changes randomly — every collapse is **structured, timed, and emergent**.
 
-Follow these steps:
+---
 
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
+## ⚙️ Technical Stack
 
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
+- **TypeScript**
+- **React (Functional Components)**
+- **HTML5 Canvas**
+- **Web Audio API**
+- No external game engines
 
-# Step 3: Install the necessary dependencies.
-npm i
+Architecture is modular and phase-driven.
 
-# Step 4: Start the development server with auto-reloading and an instant preview.
-npm run dev
-```
+---
 
-**Edit a file directly in GitHub**
+## 🎮 Core Gameplay
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+- Classic Flappy-style survival loop
+- Tap / Click / Space to flap
+- Pass pipes to score
+- Progress through **phases**, each introducing new instability
 
-**Use GitHub Codespaces**
+> The player is not fighting the bird, they are fighting the **system itself**.
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+###  ⚠️During **Control Flip** phases:
+- HOLD input pushes the bird **down**
+- RELEASE lets it float **up**
+  
+---
 
-## What technologies are used for this project?
+## 🔢 Phase System
 
-This project is built with:
 
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
+| Phase | Feature                      | Description                                                                              |
+| ----- | ---------------------------- | ---------------------------------------------------------------------------------------- |
+| 1     | Stable System                | Normal gravity, calm ambient audio, clean visuals                                        |
+| 2     | Gravity Drift                | Slight random fluctuation in gravity, horizontal wind added, minor physics inconsistency |
+| 3     | Oscillation                  | Pipes start vertical oscillation, subtle audio wobble                                    |
+| 4     | Wind Force                   | Horizontal wind intensifies, bird movement slightly unpredictable                        |
+| 5     | Control Flip                 | Input logic temporarily inverts, visual distortion increases, audio slightly unstable    |
+| 6     | Ghost Pipes                  | Invisible pipes appear, stronger visual glitches                                         |
+| 7     | Speed Drift                  | Game speed subtly fluctuates, control timing becomes unreliable                          |
+| 8     | Visual Glitch                | Aggressive visual distortions, physics behave unpredictably, audio heavily modulated     |
+| 9     | Total Chaos                  | Final **SYSTEM OVERLOAD**, maximum visual/audio breakdown, system near total collapse    |
 
-## How can I deploy this project?
 
-Simply open [Lovable](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and click on Share -> Publish.
+---
 
-## Can I connect a custom domain to my Lovable project?
+## 🧪 Game Modes
 
-Yes, you can!
+### 🔥 Chaos Mode (Default)
+- Full instability
+- All collapse events enabled
+- Intended experience
 
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
+### 🧊 Demo Mode
+- Wider pipe gaps
+- Softer physics
+- Reduced audio intensity
+- Designed for showcasing later phases
 
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/features/custom-domain#custom-domain)
+Toggle anytime.
+
+---
+
+## 🛠️ Instability Mechanics
+
+| Mechanic            | Description                                                                                                                      |
+| ------------------- | -------------------------------------------------------------------------------------------------------------------------------- |
+| **Feedback Loops**  | Survival increases phase → Phase increases instability → Instability makes survival harder → Success accelerates failure         |
+| **Adaptive Rules**  | Gravity shifts, control logic flips in later phases, wind changes direction & strength, game rules evolve without player consent |
+| **Entropy Visuals** | Pipe oscillation grows stronger, screen wobble & desaturation, glitch flickers at high phases                                    |
+| **Collapse Events** | **System Overload** every 3 phases, brief game freeze, physics/movement halt, audio cuts & recovers, system visibly “reboots”    |
+
+
+---
+
+- Hackathon: **System Collapse Hackathon 2026**.
+- Team Name: Sableye
+- Name: Vaibhavi Srivastava
+- Github: [archangel2006](https://github.com/archangel2006/)
+
+---
+
+> 🤖 AI Usage Disclosure: AI tools (Lovable) were used as a **collaborative coding assistant**.
+System design, instability mechanics, tuning, UX decisions, and final behavior were: Directed, Iteratively refined, Manually validated
+AI was treated as a productivity tool, not a replacement for system design or creative control.
+
+
