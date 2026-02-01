@@ -1,5 +1,6 @@
 /**
  * Game Over Screen Component
+ * PATCHED: Removed Time Alive display
  */
 
 import React from 'react';
@@ -13,7 +14,6 @@ interface GameOverScreenProps {
 
 export const GameOverScreen: React.FC<GameOverScreenProps> = ({ 
   score, 
-  timeAlive, 
   phase, 
   onRestart 
 }) => {
@@ -43,22 +43,12 @@ export const GameOverScreen: React.FC<GameOverScreenProps> = ({
           
           <div className="h-px bg-border" />
           
-          <div className="grid grid-cols-2 gap-4 text-center">
-            <div>
-              <div className="text-2xl font-bold text-game-neon-cyan">
-                {Math.floor(timeAlive)}s
-              </div>
-              <div className="text-xs text-muted-foreground uppercase">
-                TIME ALIVE
-              </div>
+          <div className="text-center">
+            <div className="text-2xl font-bold text-secondary">
+              PHASE {phase}
             </div>
-            <div>
-              <div className="text-2xl font-bold text-secondary">
-                {phase}
-              </div>
-              <div className="text-xs text-muted-foreground uppercase">
-                PHASE REACHED
-              </div>
+            <div className="text-xs text-muted-foreground uppercase">
+              REACHED
             </div>
           </div>
         </div>
@@ -78,7 +68,7 @@ export const GameOverScreen: React.FC<GameOverScreenProps> = ({
       {/* Phase breakdown */}
       <div className="mt-8 text-xs text-muted-foreground/50 text-center">
         {phase >= 9 ? (
-          <span className="text-accent">You reached FULL INSTABILITY!</span>
+          <span className="text-accent">You reached TOTAL CHAOS!</span>
         ) : phase >= 5 ? (
           <span>You survived the control flip!</span>
         ) : (

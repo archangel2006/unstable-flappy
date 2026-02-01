@@ -2,7 +2,7 @@
  * Renderer Module
  * Handles all canvas drawing operations
  * 
- * PATCHED: Enhanced oscillating pipe glow/trail effects
+ * PATCHED: Horizontal wind indicator, enhanced oscillation visibility
  */
 
 import { Bird, Pipe, GameState } from './Types';
@@ -114,8 +114,8 @@ export function drawPipe(
   
   // Draw trail effect for oscillating pipes
   if (isOscillating && Math.abs(pipe.oscillationOffset) > 5) {
-    ctx.globalAlpha = 0.2;
-    const trailOffset = -pipe.oscillationOffset * 0.3;
+    ctx.globalAlpha = 0.15;
+    const trailOffset = -pipe.oscillationOffset * 0.4;
     const trailGapTop = (pipe.gapY + trailOffset) - pipe.gapSize / 2;
     const trailGapBottom = (pipe.gapY + trailOffset) + pipe.gapSize / 2;
     
@@ -133,9 +133,9 @@ export function drawPipe(
   } else {
     ctx.fillStyle = COLORS.PIPE;
     // Enhanced glow for oscillating pipes
-    if (isOscillating && Math.abs(pipe.oscillationOffset) > 10) {
+    if (isOscillating && Math.abs(pipe.oscillationOffset) > 15) {
       ctx.shadowColor = '#ff00ff';
-      ctx.shadowBlur = 20;
+      ctx.shadowBlur = 25;
     } else {
       ctx.shadowColor = COLORS.PIPE_GLOW;
       ctx.shadowBlur = 10;
@@ -174,7 +174,7 @@ export function drawPipes(
 }
 
 /**
- * Draws wind direction indicator
+ * Draws HORIZONTAL wind direction indicator (left/right arrow)
  */
 export function drawWindIndicator(
   ctx: CanvasRenderingContext2D,
@@ -184,24 +184,28 @@ export function drawWindIndicator(
   
   const x = 20;
   const y = 100;
-  const size = 15;
+  const size = 12;
   
   ctx.save();
   ctx.translate(x, y);
   
+  // Point left or right
   if (windForce < 0) {
-    ctx.rotate(-Math.PI / 2);
-  } else {
-    ctx.rotate(Math.PI / 2);
+    // Left arrow
+    ctx.scale(-1, 1);
   }
   
+  // Draw horizontal arrow
   ctx.fillStyle = 'rgba(0, 255, 136, 0.8)';
   ctx.beginPath();
   ctx.moveTo(size, 0);
-  ctx.lineTo(-size / 2, -size / 2);
-  ctx.lineTo(-size / 2, size / 2);
+  ctx.lineTo(0, -size / 2);
+  ctx.lineTo(0, size / 2);
   ctx.closePath();
   ctx.fill();
+  
+  // Arrow tail
+  ctx.fillRect(-size * 0.8, -3, size * 0.8, 6);
   
   ctx.restore();
 }
@@ -237,6 +241,7 @@ export function render(
   drawGround(ctx);
   drawBird(ctx, state.bird, state.cameraShake);
   
+  // Draw horizontal wind indicator
   if (state.currentWindForce !== 0) {
     drawWindIndicator(ctx, state.currentWindForce);
   }

@@ -1,6 +1,8 @@
 /**
  * Bird Physics Module
  * Handles bird movement, gravity, and flapping mechanics
+ * 
+ * PATCHED: Added horizontal wind support, fixed control flip logic
  */
 
 import { Bird } from './Types';
@@ -14,64 +16,99 @@ export function createBird(): Bird {
     x: BIRD.X_POSITION,
     y: BIRD.INITIAL_Y,
     velocityY: 0,
+    velocityX: 0, // Horizontal velocity for wind
     width: BIRD.WIDTH,
     height: BIRD.HEIGHT,
   };
 }
 
 /**
- * Updates bird physics based on gravity and velocity
+ * Updates bird physics based on gravity and control state
+ * 
+ * Normal mode: gravity pulls down, flap pushes up
+ * Control flip mode: HOLD input = forced down, RELEASE = floats up
+ * 
  * @param bird - Current bird state
- * @param gravity - Current gravity value (can change per phase)
- * @param windForce - Current wind force
- * @returns Updated bird state
+ * @param gravity - Current gravity value
+ * @param horizontalWind - Horizontal wind force (left/right)
+ * @param isControlFlipped - Whether controls are inverted
+ * @param isHoldingInput - Whether player is holding space/click
  */
 export function updateBird(
   bird: Bird,
   gravity: number,
-  windForce: number
+  horizontalWind: number,
+  isControlFlipped: boolean,
+  isHoldingInput: boolean
 ): Bird {
-  // Apply gravity
-  let newVelocity = bird.velocityY + gravity;
+  let newVelocityY = bird.velocityY;
   
-  // Apply wind force
-  newVelocity += windForce;
+  if (isControlFlipped) {
+    // CONTROL FLIP MODE:
+    // Holding input = pulled DOWN (like gravity is stronger)
+    // Not holding = floats UP (like anti-gravity)
+    if (isHoldingInput) {
+      // Holding: Strong downward pull
+      newVelocityY += gravity * 2.5;
+    } else {
+      // Released: Float upward
+      newVelocityY -= gravity * 1.2;
+    }
+  } else {
+    // NORMAL MODE: gravity always pulls down
+    newVelocityY += gravity;
+  }
   
   // Clamp velocity to prevent extreme speeds
-  newVelocity = Math.max(
+  newVelocityY = Math.max(
     PHYSICS.MIN_VELOCITY,
-    Math.min(PHYSICS.MAX_VELOCITY, newVelocity)
+    Math.min(PHYSICS.MAX_VELOCITY, newVelocityY)
   );
   
-  // Update position
-  let newY = bird.y + newVelocity;
+  // Update vertical position
+  let newY = bird.y + newVelocityY;
   
   // Clamp to screen bounds (top)
   if (newY < 0) {
     newY = 0;
-    newVelocity = 0;
+    newVelocityY = 0;
   }
+  
+  // Apply horizontal wind force
+  let newVelocityX = bird.velocityX + horizontalWind;
+  // Apply friction to horizontal movement
+  newVelocityX *= 0.95;
+  // Clamp horizontal velocity
+  newVelocityX = Math.max(-3, Math.min(3, newVelocityX));
+  
+  // Update horizontal position
+  let newX = bird.x + newVelocityX;
+  // Keep bird on screen horizontally
+  newX = Math.max(20, Math.min(CANVAS.WIDTH - bird.width - 20, newX));
   
   return {
     ...bird,
+    x: newX,
     y: newY,
-    velocityY: newVelocity,
+    velocityY: newVelocityY,
+    velocityX: newVelocityX,
   };
 }
 
 /**
- * Applies flap force to the bird
- * @param bird - Current bird state
- * @param isControlFlipped - Whether controls are inverted
- * @returns Updated bird state with flap applied
+ * Applies flap force to the bird (only in normal mode)
+ * In control flip mode, this is handled by updateBird based on hold state
  */
 export function flapBird(bird: Bird, isControlFlipped: boolean): Bird {
-  // When control is flipped, flap pushes DOWN instead of UP
-  const force = isControlFlipped ? -PHYSICS.FLAP_FORCE : PHYSICS.FLAP_FORCE;
+  if (isControlFlipped) {
+    // In control flip mode, flapping is handled by hold state in updateBird
+    return bird;
+  }
   
+  // Normal mode: flap pushes up
   return {
     ...bird,
-    velocityY: force,
+    velocityY: PHYSICS.FLAP_FORCE,
   };
 }
 
@@ -79,7 +116,7 @@ export function flapBird(bird: Bird, isControlFlipped: boolean): Bird {
  * Checks if bird has hit the ground
  */
 export function isGroundCollision(bird: Bird): boolean {
-  return bird.y + bird.height >= CANVAS.HEIGHT - 50; // Ground is 50px tall
+  return bird.y + bird.height >= CANVAS.HEIGHT - 50;
 }
 
 /**

@@ -2,7 +2,7 @@
  * Pipe Module
  * Handles pipe creation, movement, and mutation
  * 
- * PATCHED: Added scored flag, enhanced oscillation visibility
+ * PATCHED: Increased oscillation visibility (min 40px amplitude)
  */
 
 import { Pipe, ModeConfig } from './Types';
@@ -18,17 +18,11 @@ export function createPipe(
   gapMultiplier: number = 1,
   modeConfig: ModeConfig
 ): Pipe {
-  // Calculate gap size (shrinks with phase, but more gently)
   const gapReduction = Math.max(0, phase - 2) * PIPES.GAP_SHRINK_PER_PHASE;
   let gapSize = Math.max(PIPES.MIN_GAP_SIZE, PIPES.GAP_SIZE - gapReduction);
   
-  // Apply gap multiplier from mode config first
-  gapSize = gapSize * modeConfig.pipeGapMultiplier;
+  gapSize = gapSize * modeConfig.pipeGapMultiplier * gapMultiplier;
   
-  // Then apply additional multiplier (from adaptive assist)
-  gapSize = gapSize * gapMultiplier;
-  
-  // Random gap Y position (center of gap)
   const minY = PIPES.MIN_GAP_Y + gapSize / 2;
   const maxY = CANVAS.HEIGHT - 50 - PIPES.MIN_GAP_Y - gapSize / 2;
   const gapY = minY + Math.random() * (maxY - minY);
@@ -41,7 +35,7 @@ export function createPipe(
     oscillationOffset: 0,
     oscillationSeed: Math.random() * Math.PI * 2,
     passed: false,
-    scored: false, // ADDED: Track if scored
+    scored: false,
     spawnTime: Date.now(),
     hasDelayedCollision,
   };
@@ -49,7 +43,7 @@ export function createPipe(
 
 /**
  * Updates pipe position and oscillation
- * ENHANCED: More visible oscillation in Phase 3
+ * Oscillation amplitude is at least 40px for visibility
  */
 export function updatePipe(
   pipe: Pipe,
@@ -59,24 +53,24 @@ export function updatePipe(
   gameTime: number,
   modeConfig: ModeConfig
 ): Pipe {
-  // Move pipe left
   const newX = pipe.x - speed;
   
-  // Calculate oscillation if enabled
   let oscillationOffset = 0;
   if (enableOscillation) {
-    // Enhanced amplitude for Phase 3 visibility
+    // Base amplitude: 50px (ensures visibility)
     const baseAmplitude = PHASE_EFFECTS.OSCILLATION_AMPLITUDE;
     const modeMultiplier = modeConfig.oscillationAmplitudeMultiplier;
     
-    // Phase 3: Full visible oscillation
-    // Later phases: Even more intense
+    // Phase multiplier: gets more intense in later phases
     let phaseMultiplier = 1;
     if (phase >= 9) {
-      phaseMultiplier = 1.3;
+      phaseMultiplier = 1.4;
+    } else if (phase >= 7) {
+      phaseMultiplier = 1.2;
     }
     
-    const oscillationSpeed = PHASE_EFFECTS.OSCILLATION_SPEED * (1 + Math.min(phase - 3, 3) * 0.1);
+    // Smooth sine wave oscillation
+    const oscillationSpeed = PHASE_EFFECTS.OSCILLATION_SPEED * (1 + Math.min(phase - 3, 4) * 0.1);
     oscillationOffset = Math.sin(gameTime * oscillationSpeed + pipe.oscillationSeed) 
       * baseAmplitude * modeMultiplier * phaseMultiplier;
   }
@@ -97,14 +91,11 @@ export function isPipeOffScreen(pipe: Pipe): boolean {
 
 /**
  * Checks if bird has passed the pipe center (for scoring)
- * FIXED: Uses pipe center and scored flag
  */
 export function checkAndScorePipe(pipe: Pipe, birdX: number): { scored: boolean; pipe: Pipe } {
   const pipeCenterX = pipe.x + PIPES.WIDTH / 2;
   
-  // Bird has passed center and not yet scored
   if (!pipe.scored && birdX > pipeCenterX) {
-    console.log(`[SCORE] Pipe scored! Bird X: ${birdX.toFixed(0)}, Pipe center: ${pipeCenterX.toFixed(0)}`);
     return {
       scored: true,
       pipe: { ...pipe, scored: true, passed: true }
