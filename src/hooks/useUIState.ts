@@ -28,6 +28,7 @@ function createInitialUIState(): UIState {
     controlFlipWarning: false,
     phaseChangeDisplay: '',
     gravityWobble: 0,
+    isSystemOverload: false,
   };
 }
 
@@ -57,6 +58,7 @@ export function useUIState(stateRef: React.MutableRefObject<GameState>) {
         controlFlipWarning: state.controlFlipWarning,
         phaseChangeDisplay: state.phaseChangeDisplay,
         gravityWobble: state.gravityWobble,
+        isSystemOverload: state.isSystemOverload,
       };
       
       setUIState(newUIState);

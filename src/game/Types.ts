@@ -56,6 +56,7 @@ export interface UIState {
   controlFlipWarning: boolean;
   phaseChangeDisplay: string;
   gravityWobble: number;
+  isSystemOverload: boolean;
 }
 
 export type GameMode = 'CHAOS' | 'DEMO';
@@ -95,6 +96,10 @@ export interface GameState {
   phaseChangeDisplay: string;
   phaseChangeDisplayEndTime: number;
   
+  // System Overload freeze event
+  isSystemOverload: boolean;
+  systemOverloadEndTime: number;
+  
   // Visual effects
   cameraShake: { x: number; y: number };
   canvasRotation: number;
@@ -103,6 +108,7 @@ export interface GameState {
   warningFlash: boolean;
   gravityWobble: number;
   lastGravityChange: number;
+  desaturation: number; // 0-1 for grayscale effect
 }
 
 export interface PhaseConfig {
