@@ -1,26 +1,49 @@
 <!doctype html>
 <html lang="en">
   <head>
+    <!-- Basic -->
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <!-- TODO: Set the document title to the name of your application -->
-    <title>Lovable App</title>
-    <meta name="description" content="Lovable Generated Project" />
-    <meta name="author" content="Lovable" />
+    <meta name="theme-color" content="#0f172a" />
 
-    <!-- TODO: Update og:title to match your application name -->
-    <meta property="og:title" content="Lovable App" />
-    <meta property="og:description" content="Lovable Generated Project" />
+    <!-- Title -->
+    <title>Unstable Flappy</title>
+    <meta
+      name="description"
+      content="Unstable Flappy — a Flappy Bird–inspired game where the system slowly breaks itself."
+    />
+
+    <!-- Favicon -->
+    <link rel="icon" type="image/png" href="/favicon.png" />
+    <link rel="apple-touch-icon" href="/favicon.jpg" />
+
+    <!-- Open Graph (for sharing / judging links) -->
+    <meta property="og:title" content="Unstable Flappy" />
+    <meta
+      property="og:description"
+      content="A system-driven arcade game where rules collapse over time."
+    />
     <meta property="og:type" content="website" />
-    <meta property="og:image" content="https://lovable.dev/opengraph-image-p98pqg.png" />
+    <meta property="og:image" content="/og-image.png" />
 
+    <!-- Twitter -->
     <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:site" content="@Lovable" />
-    <meta name="twitter:image" content="https://lovable.dev/opengraph-image-p98pqg.png" />
+    <meta name="twitter:title" content="Unstable Flappy" />
+    <meta
+      name="twitter:description"
+      content="A system that destabilizes itself."
+    />
+    <meta name="twitter:image" content="/og-image.png" />
   </head>
 
   <body>
+    <noscript>
+      This game requires JavaScript to run.
+    </noscript>
+
     <div id="root"></div>
+
+    <!-- App entry -->
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
