@@ -3,10 +3,13 @@
  * Displays score, phase, effects, and debug metrics
  * 
  * PATCHED: Removed timeAlive and Assist, added horizontal wind display
+ * Added audio mute toggle
  */
 
-import React from 'react';
+import React, { useState, useCallback } from 'react';
 import { UIState } from '../game/Types';
+import { audioManager } from '../game/AudioManager';
+import { Volume2, VolumeX } from 'lucide-react';
 
 interface GameHUDProps {
   uiState: UIState;
@@ -23,6 +26,13 @@ export const GameHUD: React.FC<GameHUDProps> = ({ uiState }) => {
     mode,
     isControlFlipped,
   } = uiState;
+  
+  const [isMuted, setIsMuted] = useState(audioManager.getMuted());
+  
+  const handleToggleMute = useCallback(() => {
+    const newMuted = audioManager.toggleMute();
+    setIsMuted(newMuted);
+  }, []);
 
   // Format wind with direction arrow (horizontal: left/right)
   const windDisplay = windForce === 0 
@@ -41,8 +51,22 @@ export const GameHUD: React.FC<GameHUDProps> = ({ uiState }) => {
         <div className="text-sm text-muted-foreground mt-1">SCORE</div>
       </div>
       
-      {/* Top right - Phase */}
-      <div className="absolute top-4 right-4 text-right">
+      {/* Top right - Phase and Audio */}
+      <div className="absolute top-4 right-4 text-right flex items-start gap-3">
+        {/* Audio mute toggle */}
+        <button
+          onClick={handleToggleMute}
+          className="pointer-events-auto p-2 rounded-lg bg-background/50 hover:bg-background/80 
+                     border border-border/50 hover:border-primary/50 transition-all"
+          title={isMuted ? 'Unmute audio' : 'Mute audio'}
+        >
+          {isMuted ? (
+            <VolumeX className="w-5 h-5 text-muted-foreground" />
+          ) : (
+            <Volume2 className="w-5 h-5 text-primary" />
+          )}
+        </button>
+        
         <div className="text-2xl font-bold text-game-neon-cyan">
           PHASE {currentPhase}
         </div>
