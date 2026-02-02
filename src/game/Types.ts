@@ -36,6 +36,7 @@ export interface ModeConfig {
   windForceMultiplier: number;
   oscillationAmplitudeMultiplier: number;
   controlFlipDurationMultiplier: number;
+  controlFlipForceMultiplier: number; // Dampens flip force in Demo Mode
   ghostPipeOpacity: number;
   collisionForgivenessMs: number;
 }

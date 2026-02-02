@@ -18,6 +18,7 @@ export const CHAOS_MODE_CONFIG: ModeConfig = {
   windForceMultiplier: 1.0,
   oscillationAmplitudeMultiplier: 1.0,
   controlFlipDurationMultiplier: 1.0,
+  controlFlipForceMultiplier: 1.0, // Full flip force
   ghostPipeOpacity: 0.4,
   collisionForgivenessMs: 0,
 };
@@ -25,6 +26,7 @@ export const CHAOS_MODE_CONFIG: ModeConfig = {
 /**
  * DEMO MODE - Easier spacing for showcase
  * Mechanics still active, only parameters scaled
+ * Control flip is significantly dampened for recordability
  */
 export const DEMO_MODE_CONFIG: ModeConfig = {
   pipeGapMultiplier: 1.6,
@@ -33,7 +35,8 @@ export const DEMO_MODE_CONFIG: ModeConfig = {
   gravityMultiplier: 0.8,
   windForceMultiplier: 0.6,
   oscillationAmplitudeMultiplier: 0.75,
-  controlFlipDurationMultiplier: 0.5,
+  controlFlipDurationMultiplier: 0.3, // Much shorter flip (was 0.5)
+  controlFlipForceMultiplier: 0.5,    // Dampened flip force (50% strength)
   ghostPipeOpacity: 0.3,
   collisionForgivenessMs: 120,
 };

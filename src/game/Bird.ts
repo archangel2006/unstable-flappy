@@ -33,13 +33,15 @@ export function createBird(): Bird {
  * @param horizontalWind - Horizontal wind force (left/right)
  * @param isControlFlipped - Whether controls are inverted
  * @param isHoldingInput - Whether player is holding space/click
+ * @param flipForceMultiplier - Dampens flip force (1.0 = full, 0.5 = half strength)
  */
 export function updateBird(
   bird: Bird,
   gravity: number,
   horizontalWind: number,
   isControlFlipped: boolean,
-  isHoldingInput: boolean
+  isHoldingInput: boolean,
+  flipForceMultiplier: number = 1.0
 ): Bird {
   let newVelocityY = bird.velocityY;
   
@@ -47,12 +49,18 @@ export function updateBird(
     // CONTROL FLIP MODE:
     // Holding input = pulled DOWN (like gravity is stronger)
     // Not holding = floats UP (like anti-gravity)
+    // Force is dampened by flipForceMultiplier in Demo Mode
     if (isHoldingInput) {
-      // Holding: Strong downward pull
-      newVelocityY += gravity * 2.5;
+      // Holding: Strong downward pull (dampened in Demo Mode)
+      newVelocityY += gravity * 2.5 * flipForceMultiplier;
     } else {
-      // Released: Float upward
-      newVelocityY -= gravity * 1.2;
+      // Released: Float upward (dampened in Demo Mode)
+      newVelocityY -= gravity * 1.2 * flipForceMultiplier;
+    }
+    
+    // In Demo Mode with low multiplier, add some normal gravity to stay playable
+    if (flipForceMultiplier < 1.0) {
+      newVelocityY += gravity * (1 - flipForceMultiplier) * 0.5;
     }
   } else {
     // NORMAL MODE: gravity always pulls down

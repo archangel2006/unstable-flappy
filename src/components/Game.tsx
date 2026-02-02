@@ -8,7 +8,7 @@
 
 import React, { useRef, useEffect, useCallback } from 'react';
 import { GameState, Pipe, GameMode } from '../game/Types';
-import { CANVAS, PIPES, PHYSICS, SLOW_MOTION, PHASE_EFFECTS } from '../game/Config';
+import { CANVAS, PIPES, PHYSICS, SLOW_MOTION, PHASE_EFFECTS, SYSTEM_OVERLOAD, PHASE } from '../game/Config';
 import { getModeConfig, logModeChange } from '../game/ModeConfig';
 import { createBird, updateBird, flapBird } from '../game/Bird';
 import { 
@@ -29,6 +29,7 @@ import {
   getControlFlipDuration,
   calculateVisualEffects,
   getPhaseTitle,
+  shouldShowPhaseBanner,
 } from '../game/PhaseManager';
 import { checkAllCollisions } from '../game/Collision';
 import { render } from '../game/Renderer';
@@ -288,27 +289,32 @@ export const Game: React.FC = () => {
       // Update time alive
       state.timeAlive += deltaTime;
       
-      // Update phase
+      // Update phase (capped at MAX_PHASE)
       const newPhase = getCurrentPhase(state.timeAlive);
-      if (newPhase !== state.phase) {
+      const previousPhase = state.phase;
+      
+      if (newPhase !== previousPhase) {
         console.log(`[PHASE] Changed to Phase ${newPhase}`);
         state.phase = newPhase;
         
-        // Update audio based on phase
-        audioManager.updatePhase(newPhase);
+        // Update audio based on phase (capped internally)
+        audioManager.updatePhase(Math.min(newPhase, PHASE.MAX_PHASE));
         
-        const title = getPhaseTitle(newPhase);
-        state.phaseChangeDisplay = `${title.phase}\n${title.effect}`;
-        state.phaseChangeDisplayEndTime = timestamp + 2000;
-        state.screenFlash = 0.5;
-        state.isSlowMotion = true;
-        state.slowMotionEndTime = timestamp + SLOW_MOTION.PHASE_CHANGE_DURATION;
-        state.timeScale = SLOW_MOTION.TIME_SCALE;
+        // Only show phase banner for phases 1-10 (not beyond)
+        if (shouldShowPhaseBanner(newPhase, previousPhase)) {
+          const title = getPhaseTitle(newPhase);
+          state.phaseChangeDisplay = `${title.phase}\n${title.effect}`;
+          state.phaseChangeDisplayEndTime = timestamp + 2000;
+          state.screenFlash = 0.5;
+          state.isSlowMotion = true;
+          state.slowMotionEndTime = timestamp + SLOW_MOTION.PHASE_CHANGE_DURATION;
+          state.timeScale = SLOW_MOTION.TIME_SCALE;
+        }
         
-        // Trigger System Overload at phases 3, 6, 9 (every 3rd phase)
-        if (newPhase >= 3 && newPhase % 3 === 0) {
+        // Trigger System Overload at phases 3, 6, 9 only
+        if (SYSTEM_OVERLOAD.TRIGGER_PHASES.includes(newPhase)) {
           state.isSystemOverload = true;
-          state.systemOverloadEndTime = timestamp + 700; // 0.7 second freeze
+          state.systemOverloadEndTime = timestamp + SYSTEM_OVERLOAD.FREEZE_DURATION;
           state.desaturation = 1;
           console.log(`[SYSTEM] Overload triggered at Phase ${newPhase}`);
           
@@ -377,7 +383,8 @@ export const Game: React.FC = () => {
         gravity, 
         windForce, // Now horizontal
         state.isControlFlipped,
-        state.isHoldingInput
+        state.isHoldingInput,
+        state.modeConfig.controlFlipForceMultiplier // Dampened in Demo Mode
       );
       
       // Spawn pipes
