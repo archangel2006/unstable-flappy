@@ -221,14 +221,16 @@ export const Game: React.FC = () => {
     state.timeAlive = targetTime;
     state.phase = phase;
     
-    // Trigger phase change display
+    // Trigger phase change display (only for phases 1-10)
     const title = getPhaseTitle(phase);
-    state.phaseChangeDisplay = `${title.phase}\n${title.effect}`;
-    state.phaseChangeDisplayEndTime = performance.now() + 2000;
-    state.screenFlash = 0.5;
-    state.isSlowMotion = true;
-    state.slowMotionEndTime = performance.now() + SLOW_MOTION.PHASE_CHANGE_DURATION;
-    state.timeScale = SLOW_MOTION.TIME_SCALE;
+    if (title) {
+      state.phaseChangeDisplay = `${title.phase}\n${title.effect}`;
+      state.phaseChangeDisplayEndTime = performance.now() + 2000;
+      state.screenFlash = 0.5;
+      state.isSlowMotion = true;
+      state.slowMotionEndTime = performance.now() + SLOW_MOTION.PHASE_CHANGE_DURATION;
+      state.timeScale = SLOW_MOTION.TIME_SCALE;
+    }
     
     console.log(`[PHASE] Jumped to Phase ${phase}`);
     forceUpdate();
@@ -297,24 +299,28 @@ export const Game: React.FC = () => {
         // Update audio based on phase
         audioManager.updatePhase(newPhase);
         
+        // Only show phase announcement for phases 1-10
         const title = getPhaseTitle(newPhase);
-        state.phaseChangeDisplay = `${title.phase}\n${title.effect}`;
-        state.phaseChangeDisplayEndTime = timestamp + 2000;
-        state.screenFlash = 0.5;
-        state.isSlowMotion = true;
-        state.slowMotionEndTime = timestamp + SLOW_MOTION.PHASE_CHANGE_DURATION;
-        state.timeScale = SLOW_MOTION.TIME_SCALE;
-        
-        // Trigger System Overload at phases 3, 6, 9 (every 3rd phase)
-        if (newPhase >= 3 && newPhase % 3 === 0) {
-          state.isSystemOverload = true;
-          state.systemOverloadEndTime = timestamp + 700; // 0.7 second freeze
-          state.desaturation = 1;
-          console.log(`[SYSTEM] Overload triggered at Phase ${newPhase}`);
+        if (title) {
+          state.phaseChangeDisplay = `${title.phase}\n${title.effect}`;
+          state.phaseChangeDisplayEndTime = timestamp + 2000;
+          state.screenFlash = 0.5;
+          state.isSlowMotion = true;
+          state.slowMotionEndTime = timestamp + SLOW_MOTION.PHASE_CHANGE_DURATION;
+          state.timeScale = SLOW_MOTION.TIME_SCALE;
           
-          // Trigger audio overload effect (momentary silence then distortion)
-          audioManager.triggerOverload();
+          // Trigger System Overload at phases 3, 6, 9 (every 3rd phase, up to 10)
+          if (newPhase >= 3 && newPhase <= 9 && newPhase % 3 === 0) {
+            state.isSystemOverload = true;
+            state.systemOverloadEndTime = timestamp + 700; // 0.7 second freeze
+            state.desaturation = 1;
+            console.log(`[SYSTEM] Overload triggered at Phase ${newPhase}`);
+            
+            // Trigger audio overload effect (momentary silence then distortion)
+            audioManager.triggerOverload();
+          }
         }
+        // After phase 10, game continues silently with all effects active
       }
       
       // Clear phase display after time
