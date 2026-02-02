@@ -100,7 +100,7 @@ export function drawBird(
 
 /**
  * Draws a single pipe with enhanced oscillation effects
- * When oscillating: adds trail effect and glow to emphasize movement
+ * When oscillating: adds subtle glow to emphasize movement (no trail/container)
  */
 export function drawPipe(
   ctx: CanvasRenderingContext2D, 
@@ -113,20 +113,6 @@ export function drawPipe(
   const gapBottom = effectiveGapY + pipe.gapSize / 2;
   const groundY = CANVAS.HEIGHT - 50;
   
-  // Draw trail effect for oscillating pipes (shows previous position)
-  if (isOscillating && Math.abs(pipe.oscillationOffset) > 10) {
-    ctx.globalAlpha = 0.2;
-    // Trail shows where pipe was (opposite of current offset)
-    const trailOffset = -pipe.oscillationOffset * 0.5;
-    const trailGapTop = (pipe.gapY + trailOffset) - pipe.gapSize / 2;
-    const trailGapBottom = (pipe.gapY + trailOffset) + pipe.gapSize / 2;
-    
-    ctx.fillStyle = COLORS.PIPE;
-    ctx.fillRect(pipe.x, 0, PIPES.WIDTH, trailGapTop);
-    ctx.fillRect(pipe.x, trailGapBottom, PIPES.WIDTH, groundY - trailGapBottom);
-    ctx.globalAlpha = 1;
-  }
-  
   // Set style based on ghost status
   if (pipe.isGhost) {
     ctx.globalAlpha = ghostOpacity;
@@ -135,8 +121,8 @@ export function drawPipe(
   } else {
     ctx.fillStyle = COLORS.PIPE;
     // Enhanced glow for oscillating pipes - more intense with larger offset
-    if (isOscillating) {
-      const glowIntensity = Math.min(30, 10 + Math.abs(pipe.oscillationOffset) * 0.3);
+    if (isOscillating && Math.abs(pipe.oscillationOffset) > 5) {
+      const glowIntensity = Math.min(25, 8 + Math.abs(pipe.oscillationOffset) * 0.25);
       ctx.shadowColor = '#ff00ff';
       ctx.shadowBlur = glowIntensity;
     } else {

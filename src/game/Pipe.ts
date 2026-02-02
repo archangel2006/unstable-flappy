@@ -115,12 +115,15 @@ export function checkAndScorePipe(pipe: Pipe, birdX: number): { scored: boolean;
 
 /**
  * Determines if a new pipe should be a ghost pipe based on phase
+ * Phase 6: Moderate frequency, intermittent
+ * Phase 7+: Slightly fewer, still intermittent
  */
 export function shouldBeGhostPipe(phase: number): boolean {
   if (phase < 6) return false;
   
-  const probability = EFFECTS.GHOST_PIPE_BASE_PROBABILITY + 
-    (phase - 6) * EFFECTS.GHOST_PIPE_PHASE_MULTIPLIER;
+  // Phase 6: 35% chance (moderate, intermittent)
+  // Phase 7+: 25% chance (fewer than phase 6)
+  const probability = phase === 6 ? 0.35 : 0.25;
   return Math.random() < probability;
 }
 

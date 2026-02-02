@@ -10,9 +10,11 @@ import { PHYSICS, WIND, PIPES, EFFECTS, PHASE, PHASE_EFFECTS } from './Config';
 
 /**
  * Gets the current phase based on time alive
+ * Capped at PHASE 10 - game continues indefinitely after that
  */
 export function getCurrentPhase(timeAlive: number): number {
-  return Math.floor(timeAlive / PHASE.DURATION) + 1;
+  const rawPhase = Math.floor(timeAlive / PHASE.DURATION) + 1;
+  return Math.min(rawPhase, PHASE.MAX_PHASE);
 }
 
 /**
@@ -223,10 +225,19 @@ export function getPhaseTitle(phase: number): { phase: string; effect: string } 
     7: 'SPEED DRIFT',
     8: 'VISUAL GLITCH',
     9: 'TOTAL CHAOS',
+    10: 'BEYOND REPAIR',
   };
   
   return {
     phase: `PHASE ${phase}`,
     effect: titles[phase] || 'BEYOND',
   };
+}
+
+/**
+ * Check if we should show phase banner (only for phases 1-10)
+ */
+export function shouldShowPhaseBanner(phase: number, previousPhase: number): boolean {
+  // Only show banner when entering a new phase up to MAX_PHASE
+  return phase !== previousPhase && phase <= PHASE.MAX_PHASE;
 }

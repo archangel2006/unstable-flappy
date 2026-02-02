@@ -38,6 +38,12 @@ export const PIPES = {
 export const PHASE = {
   DURATION: 15,
   TOTAL_PHASES: 9,
+  MAX_PHASE: 10, // Final phase - game continues but no more banners
+} as const;
+
+export const SYSTEM_OVERLOAD = {
+  FREEZE_DURATION: 1000, // 1.0 second freeze
+  TRIGGER_PHASES: [3, 6, 9] as number[], // Phases that trigger overload
 } as const;
 
 export const WIND = {
