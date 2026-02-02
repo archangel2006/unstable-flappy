@@ -211,8 +211,14 @@ export function getActiveEffects(
 
 /**
  * Gets the phase title for display (clean format without em dash)
+ * Phase 10 is the final announced phase
  */
-export function getPhaseTitle(phase: number): { phase: string; effect: string } {
+export function getPhaseTitle(phase: number): { phase: string; effect: string } | null {
+  // No display for phases beyond 10
+  if (phase > 10) {
+    return null;
+  }
+  
   const titles: { [key: number]: string } = {
     1: 'CLASSIC',
     2: 'GRAVITY DRIFT',
@@ -223,6 +229,7 @@ export function getPhaseTitle(phase: number): { phase: string; effect: string } 
     7: 'SPEED DRIFT',
     8: 'VISUAL GLITCH',
     9: 'TOTAL CHAOS',
+    10: 'BEYOND REPAIR',
   };
   
   return {
