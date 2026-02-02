@@ -35,7 +35,7 @@ export const DEMO_MODE_CONFIG: ModeConfig = {
   gravityMultiplier: 0.8,
   windForceMultiplier: 0.6,
   oscillationAmplitudeMultiplier: 0.75,
-  controlFlipDurationMultiplier: 0.3, // Much shorter flip (was 0.5)
+  controlFlipDurationMultiplier: 0.5, // 50% of Chaos Mode duration
   controlFlipForceMultiplier: 0.5,    // Dampened flip force (50% strength)
   ghostPipeOpacity: 0.3,
   collisionForgivenessMs: 120,

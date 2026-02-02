@@ -269,21 +269,29 @@ export const Game: React.FC = () => {
         if (timestamp > state.systemOverloadEndTime) {
           // End the overload freeze
           state.isSystemOverload = false;
-          state.desaturation = 0;
           console.log('[SYSTEM] Overload ended, resuming...');
           
           // Resume audio with a brief distortion spike fade-out
           audioManager.resumeFromOverload();
+          
+          // Start fade-out of desaturation (overlay will fade with it)
+          // Don't set to 0 immediately - let it decay in normal game loop
         } else {
-          // During freeze: apply flickering desaturation
-          const flickerPhase = Math.sin(timestamp * 0.02) * 0.5 + 0.5;
-          state.desaturation = 0.7 + flickerPhase * 0.3;
+          // During freeze: keep desaturation at full with subtle flicker
+          const flickerPhase = Math.sin(timestamp * 0.03) * 0.5 + 0.5;
+          state.desaturation = 0.85 + flickerPhase * 0.15;
         }
         
         // Render but don't update physics during freeze
         render(ctx, canvas, state);
         animationFrameRef.current = requestAnimationFrame(gameLoop);
         return;
+      }
+      
+      // Decay desaturation after system overload ends (smooth fade-out)
+      if (state.desaturation > 0 && !state.isSystemOverload) {
+        state.desaturation *= 0.92;
+        if (state.desaturation < 0.05) state.desaturation = 0;
       }
       
       // Update time alive
@@ -550,20 +558,33 @@ export const Game: React.FC = () => {
           }}
         />
         
-        {/* System Overload Overlay */}
-        {state.isSystemOverload && (
-          <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-30">
+        {/* System Overload Overlay - uses desaturation > 0 to stay visible during entire freeze */}
+        {state.desaturation > 0 && (
+          <div 
+            className="absolute inset-0 flex items-center justify-center pointer-events-none z-30"
+            style={{
+              opacity: Math.min(1, state.desaturation * 1.2),
+              transition: 'opacity 0.15s ease-out',
+            }}
+          >
             <div 
-              className="text-center px-10 py-6 rounded-xl border-2 border-destructive/50 animate-pulse"
+              className="text-center px-10 py-6 rounded-xl border-2 animate-pulse"
               style={{
-                background: 'rgba(0, 0, 0, 0.9)',
-                boxShadow: '0 0 60px rgba(255, 0, 0, 0.4), inset 0 0 30px rgba(255, 0, 0, 0.1)',
+                background: 'rgba(10, 20, 40, 0.95)',
+                borderColor: 'rgba(100, 180, 255, 0.6)',
+                boxShadow: '0 0 80px rgba(80, 160, 255, 0.5), inset 0 0 40px rgba(100, 200, 255, 0.15)',
               }}
             >
-              <div className="text-3xl font-bold text-destructive mb-2 tracking-wider">
+              <div 
+                className="text-3xl font-bold mb-2 tracking-wider"
+                style={{ color: 'rgb(120, 200, 255)' }}
+              >
                 SYSTEM OVERLOAD
               </div>
-              <div className="text-lg text-muted-foreground animate-pulse">
+              <div 
+                className="text-lg animate-pulse"
+                style={{ color: 'rgba(150, 200, 255, 0.8)' }}
+              >
                 Stabilizing...
               </div>
             </div>
